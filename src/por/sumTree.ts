@@ -97,6 +97,12 @@ export class LiabilityTree {
     return this.levels[this.depth][0];
   }
 
+  /** The two children of the root: what the circuit takes as private witnesses. */
+  rootChildren(): { left: SumNode; right: SumNode } {
+    const top = this.levels[this.depth - 1];
+    return { left: top[0], right: top[1] ?? emptyAt(this.depth - 1) };
+  }
+
   prove(index: number): InclusionProof {
     if (index < 0 || index >= this.accounts.length) throw new RangeError("no such account index");
     const siblingHashes: Hash[] = [];

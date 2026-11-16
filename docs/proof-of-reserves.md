@@ -33,17 +33,44 @@ The report (root, total, reserves, attestation) is stored on-chain under the per
   and compare with the published report. A dishonest operator can only hide liabilities by omitting
   accounts or understating a branch; the first is caught by customers missing from the tree, the second
   by any customer under that branch whose recomputed total does not match.
-- **Reserves are asserted, not proven.** Proving control of on-chain addresses and their value needs
-  signatures over the reserve addresses and an oracle price (Assetprice). The `attestation` hash binds
-  the report to such a package but the circuit does not check it. Tracked as follow-up work.
+- **The reserve figure is checked off-circuit.** The circuit stores the figure and an `attestation` it
+  computes itself: `H(period, liabilities_root, reserves, reserve_package)`. The auditor verifies the
+  package behind `reserve_package` with `src/por/reserves.ts` (next section). The circuit cannot read
+  other chains or verify their signatures.
 - **Account IDs and salts are chosen by the operator.** Customers must receive their own leaf data
   out of band to run the inclusion check.
 - **Governance is single-admin** (CE-15) and there is no proof of the circuit against a live node yet.
 
+## Reserve side: the reserve package
+`publish_solvency_report(period, reserves, reserve_package)` stores `reserve_package` and an in-circuit
+`attestation = bind_attestation(period, root, reserves, reserve_package)`, so a package cannot be reused
+for another period, root or figure. `verifyReservePackage` (`src/por/reserves.ts`) is the auditor's check:
+- **Holdings:** chain, address, asset, amount in base units, snapshot height, optional haircut (bps).
+- **Control proof per holding:** an ed25519 signature by the key behind the address over
+  `H(period, liabilities_root, chain, address)`: it proves control and cannot be replayed.
+- **Prices:** NOK per whole unit times 10^8 with a timestamp (Assetprice); stale (default over 3600 s),
+  future, missing and duplicate prices are rejected.
+- **Valuation:** integer arithmetic in ore, rounded down, haircut applied: reserves are never overstated.
+- **Output:** the recomputed reserve total, `reserve_package` and `attestation`, which must equal the
+  on-chain report.
+
+Limits, stated plainly:
+- Balances at the snapshot height are **claimed**; the auditor must re-read them from each chain.
+- Address derivation is injectable and **fails closed** for every chain except the test chain; real
+  Cardano (blake2b-224), Midnight and EVM (keccak) derivation is not implemented, and secp256k1 control
+  proofs are not supported (no dependencies are allowed without discussion).
+- Prices are a flat hash commitment, not yet the Merkle-anchored inclusion proof from the blueprint.
+- A control proof shows the key signed this report; it does not show that the funds are unencumbered or
+  that the operator holds nothing against them (loans, pledges). That is an audit question.
+
 ## Verification status (2026-11-16)
 - `npm run contracts:compile`: PoR compiles (one proving circuit, `publish_solvency_report`).
 - `npm run crosscheck:por`: PASS on `hash_leaf` x3, `hash_node`, `verify_inclusion` (depth 20).
-- `npm test`: 9 new tests in `test/por.test.ts` (sum equals balances, all paths verify, tampering
+- `npm test`: 10 tests in `test/por.test.ts` (sum equals balances, all paths verify, tampering
   fails, understating a balance changes the root, solvency boundary, Uint<128> headroom, range and
   length checks, golden vectors current).
-- Not done: proving, ledger execution, a node, the reserve-side proof.
+- Reserve side: 11 tests in `test/reserves.test.ts` (valuation, haircut, replay, key/address mismatch,
+  fail-closed derivation, price age, duplicates, attestation binding); `bind_attestation` cross-checked.
+- Runtime and proving: see `docs/proving.md`. Ledger 8 only; ledger 9 migration is CE-20.
+- Not done: submission to a node or chain, verification of the generated proofs, real-chain address
+  derivation.

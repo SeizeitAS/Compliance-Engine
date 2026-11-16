@@ -1,0 +1,61 @@
+// Generate REAL zero-knowledge proofs for the compiled circuits with a Midnight proof server.
+//   npm install --no-save @midnight-ntwrk/compact-runtime@0.16.0 @midnightntwrk/ledger-v8@8.1.3
+//   PROOF_SERVER=http://localhost:6300 npm run prove
+// The proof server and the compiler outputs must target the same ledger version (docs/proving.md).
+// For each circuit: run it in the runtime to get the proof preimage, ask the server to /check that
+// the witness satisfies the circuit, then /prove. Needs Node >= 18 (global fetch). Does not submit
+// anything to a chain.
+import { readFileSync } from "node:fs";
+import { resolve } from "node:path";
+import { createCheckPayload, createProvingPayload, parseCheckResult } from "@midnightntwrk/ledger-v8";
+import { amlScenario, porScenario, rt } from "./lib/harness.mjs";
+
+const server = process.env.PROOF_SERVER ?? "http://localhost:6300";
+const TIMEOUT = Number(process.env.PROOF_TIMEOUT_MS ?? 900000);
+const post = async (path, payload) => {
+  const res = await fetch(server + path, {
+    method: "POST",
+    headers: { "Content-Type": "application/octet-stream" },
+    body: new Uint8Array(payload),
+    signal: AbortSignal.timeout(TIMEOUT),
+  });
+  if (!res.ok) throw new Error(`${path}: HTTP ${res.status} ${res.statusText}: ${(await res.text()).slice(0, 300)}`);
+  return new Uint8Array(await res.arrayBuffer());
+};
+
+const keyMaterial = (contract, circuit) => {
+  const f = (p) => new Uint8Array(readFileSync(resolve(`managed/${contract}/${p}`)));
+  return { proverKey: f(`keys/${circuit}.prover`), verifierKey: f(`keys/${circuit}.verifier`), ir: f(`zkir/${circuit}.bzkir`) };
+};
+
+let failures = 0;
+const prove = async (label, contract, circuit, run) => {
+  try {
+    const r = run();
+    const pd = r.proofData;
+    const preimage = rt.proofDataIntoSerializedPreimage(pd.input, pd.output, pd.publicTranscript, pd.privateTranscriptOutputs, circuit);
+    const km = keyMaterial(contract, circuit);
+    const check = parseCheckResult(await post("/check", createCheckPayload(preimage, km.ir)));
+    console.log(`PASS  ${label}: /check accepted the witness (${check.length} public-input checks)`);
+    const t0 = Date.now();
+    const proof = await post("/prove", createProvingPayload(preimage, undefined, km));
+    console.log(`PASS  ${label}: proof generated, ${proof.length} bytes in ${((Date.now() - t0) / 1000).toFixed(1)} s`);
+  } catch (e) {
+    failures++;
+    console.log(`FAIL  ${label}: ${String(e?.message ?? e).split("\n")[0]}`);
+  }
+};
+
+console.log(`proof server: ${server}`);
+{
+  const { fresh } = await amlScenario();
+  const d = fresh();
+  await prove("AML prove_not_sanctioned", "AML_Gate", "prove_not_sanctioned", () => d.call("prove_not_sanctioned"));
+}
+{
+  const { fresh, total, reservePackage } = await porScenario();
+  const d = fresh();
+  await prove("PoR publish_solvency_report", "PoR", "publish_solvency_report", () => d.call("publish_solvency_report", 202611n, total, reservePackage));
+}
+console.log(failures ? `\n${failures} proving step(s) failed.` : "\nAll circuits proved.");
+process.exit(failures ? 1 : 0);

@@ -15,7 +15,9 @@
     "crosscheck:circuit": "node scripts/crosscheck-circuit.mjs",
     "crosscheck:hashes": "node scripts/crosscheck-hashes.mjs",
     "vectors:por": "node scripts/gen-por-vectors.ts > test/vectors/por-vectors.json",
-    "crosscheck:por": "node scripts/crosscheck-por.mjs"
+    "crosscheck:por": "node scripts/crosscheck-por.mjs",
+    "runtime:check": "node scripts/runtime-check.mjs",
+    "prove": "node scripts/prove.mjs"
   },
   "license": "Apache-2.0"
 }

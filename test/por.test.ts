@@ -3,7 +3,7 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { execFileSync } from "node:child_process";
 import { fileURLToPath } from "node:url";
-import { LiabilityTree, verifyInclusion, isSolvent, recomputeRoot, MAX_BALANCE, type Account } from "../src/por/sumTree.ts";
+import { LiabilityTree, hashNode, verifyInclusion, isSolvent, recomputeRoot, MAX_BALANCE, type Account } from "../src/por/sumTree.ts";
 
 const root = fileURLToPath(new URL("..", import.meta.url));
 const h = (c: string) => c.repeat(64);
@@ -59,6 +59,12 @@ test("sums beyond the balance range do not overflow (Uint<128>)", () => {
 test("out-of-range balances and over-full trees are rejected", () => {
   assert.throws(() => new LiabilityTree([{ accountIdHash: h("a"), salt: h("b"), balance: MAX_BALANCE + 1n }], 4), RangeError);
   assert.throws(() => new LiabilityTree(accts(5), 2), RangeError);
+});
+
+test("root children hash up to the root with the summed total", () => {
+  const t = new LiabilityTree(accts(37), 8);
+  const k = t.rootChildren();
+  assert.deepEqual(hashNode(k.left, k.right), t.root);
 });
 
 test("path length is enforced", () => {

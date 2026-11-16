@@ -23,6 +23,8 @@ const show = (n) => `${hex(n.hash)}:${n.sum}`;
 
 v.hashLeaf.forEach((x, i) => check(`hash_leaf[${i}]`, hex(pc.hash_leaf(bytes(x.accountIdHash), bytes(x.salt), BigInt(x.balance))), x.out));
 v.hashNode.forEach((x, i) => check(`hash_node[${i}]`, show(pc.hash_node(node(x.left), node(x.right))), `${x.out.hash}:${x.out.sum}`));
+const a = v.attestation;
+check("bind_attestation", hex(pc.bind_attestation(BigInt(a.period), bytes(a.liabilitiesRoot), BigInt(a.reserves), bytes(a.reservePackage))), a.out);
 const m = v.inclusion;
 check(
   "verify_inclusion (depth 20 path, root and total)",

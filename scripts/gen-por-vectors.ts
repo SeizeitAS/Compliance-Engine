@@ -1,5 +1,6 @@
 // Golden vectors for contracts/PoR.compact from the TypeScript reference.
 // Usage: node scripts/gen-por-vectors.ts > test/vectors/por-vectors.json
+import { attestation } from "../src/por/reserves.ts";
 import { LiabilityTree, hashLeaf, hashNode, leafNode, pathDirections, DEPTH, type Account } from "../src/por/sumTree.ts";
 
 const h = (c: string) => c.repeat(64);
@@ -9,11 +10,14 @@ const accounts: Account[] = [
   { accountIdHash: h("c"), salt: h("3"), balance: 7_00n },
 ];
 const tree = new LiabilityTree(accounts, DEPTH);
+const kids = tree.rootChildren();
 const p = tree.prove(1);
 const leaf = leafNode(p.account);
 const sibling0 = { hash: p.siblingHashes[0], sum: p.siblingSums[0] };
 const pair = hashNode(sibling0, leaf);
 const s = (n: bigint) => n.toString();
+const PKG = "11".repeat(32);
+const ATT = { period: 202611n, reserves: 2_650_007_00n };
 
 console.log(
   JSON.stringify(
@@ -28,7 +32,20 @@ console.log(
           out: { hash: pair.hash, sum: s(pair.sum) },
         },
       ],
-      tree: { root: { hash: tree.root.hash, sum: s(tree.root.sum) } },
+      tree: {
+        root: { hash: tree.root.hash, sum: s(tree.root.sum) },
+        rootChildren: {
+          left: { hash: kids.left.hash, sum: s(kids.left.sum) },
+          right: { hash: kids.right.hash, sum: s(kids.right.sum) },
+        },
+      },
+      attestation: {
+        period: s(ATT.period),
+        liabilitiesRoot: tree.root.hash,
+        reserves: s(ATT.reserves),
+        reservePackage: PKG,
+        out: attestation(ATT.period, tree.root.hash, ATT.reserves, PKG),
+      },
       inclusion: {
         index: p.index,
         accountIdHash: p.account.accountIdHash,

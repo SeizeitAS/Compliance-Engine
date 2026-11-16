@@ -41,7 +41,24 @@
     "root": {
       "hash": "ef3765fa3d5fb3ed35789b00215b258685846b88de52ab1d75164b098fdc0350",
       "sum": "265000700"
+    },
+    "rootChildren": {
+      "left": {
+        "hash": "1c39647c2cffd685452635d1195f5465ca5e52f29df7e7c5f25f19ec73a23114",
+        "sum": "265000700"
+      },
+      "right": {
+        "hash": "df34b8dc248d4d9fe2104d2efb952ff84df627f9c5a9d8797373671eb5cb3a52",
+        "sum": "0"
+      }
     }
+  },
+  "attestation": {
+    "period": "202611",
+    "liabilitiesRoot": "ef3765fa3d5fb3ed35789b00215b258685846b88de52ab1d75164b098fdc0350",
+    "reserves": "265000700",
+    "reservePackage": "1111111111111111111111111111111111111111111111111111111111111111",
+    "out": "c0f77bb7713edc33cf163fbc2f6f088ec8a304579acf31957ef78e02a8ab1098"
   },
   "inclusion": {
     "index": 1,

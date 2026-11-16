@@ -13,7 +13,7 @@ machine). Nothing in this document claims a compile has succeeded.
 | Compile command: `compact compile <source.compact> <output-dir>` | same file |
 | OpenZeppelin Compact Contracts 0.4.0 (published 2026-11-04) declares `pragma language_version >= 0.26.0` and builds with a `--feature-zkir-v3` flag | npm `@openzeppelin/compact-contracts@0.4.0` |
 | npm: `@midnight-ntwrk/compact-runtime` 0.21.0 (2026-11-03), `compact-js` 3.0.0, `midnight-js` 5.0.0 (2026-11-06); the scope is migrating to `@midnightntwrk` | npm registry, 2026-11-16 |
-| Mainnet moved to ledger 9 on 2026-11-06 (toolchain 0.36.0, indexer 4.4.101, Midnight.js 5.0.0); **Preprod stayed on ledger 8** | sisit.no "Midnight Ledger 9" article (secondary source) |
+| **All three networks run ledger 9** with toolchain 0.36.0 (language 0.28.0), compact-runtime 0.21.0, compact-js 3.0.0, midnight-js 5.0.0, proof server 9.0.0, node 2.1.101, indexer 4.4.101. Mainnet upgraded 2026-11-06, Preview relaunched 2026-11-07, Preprod upgraded in place 2026-11-09 | Midnight docs, release compatibility matrix and "fix version mismatches" (retrieved 2026-11-16) |
 
 **Correction:** the blueprint and some code comments say "Compact 0.5.1". That is the version of the
 `compact` CLI (toolchain manager), not the language version: the compiler is 0.31.0 and the language
@@ -25,10 +25,9 @@ compact --version            # 0.5.1  (this is the Compact CLI / toolchain manag
 compact compile --version    # 0.31.0 (compiler)
 language version             # 0.23.0 (contract-info.json), runtime-version 0.16.0
 node --version               # v18.19.1 on the compiler host (crosscheck scripts are plain Node ESM)
-ledger / network target      # not verified; Preprod = ledger 8 per article
+ledger / network target      # ledger 8 here (compiler 0.31.0, proof server 8.1.0); public networks are on ledger 9, see below
 ```
-The target must match the network you deploy to. A contract compiled for ledger 9 will not run on
-Preprod while Preprod is on ledger 8.
+The target must match the network you deploy to; see "Ledger target" below.
 
 ## Procedure on the compiler machine
 ```
@@ -74,3 +73,41 @@ Send the exact compiler output for anything not listed; do not edit tests to mak
   Indexing `siblings[i]` in a loop was not tested; the fold replaced it. No tests were changed.
 - PoR: compiled; `crosscheck:por` PASS (see `docs/proof-of-reserves.md`).
 - Not verified: proving, execution against a node, ledger 8 vs 9 target, the reserve-side proof.
+
+## Ledger target (2026-11-16)
+**Finding: what this repository compiles and proves against is ledger 8, and no public Midnight
+network runs ledger 8 any more.** Per the Midnight release compatibility matrix, Mainnet, Preview and
+Preprod all run ledger 9 (Mainnet 2026-11-06, Preview relaunched 2026-11-07, Preprod upgraded in place
+2026-11-09) with toolchain 0.36.0 (language 0.28.0), compact-runtime 0.21.0, compact-js 3.0.0,
+midnight-js 5.0.0 and proof server 9.0.0. The earlier note here that Preprod stayed on ledger 8 is
+superseded.
+
+| Component | This repo / the compiler host (shaun3) | Public networks |
+|---|---|---|
+| Compiler | 0.31.0 (language 0.23.0) | 0.36.0 (language 0.28.0) |
+| compact-runtime | 0.16.0 | 0.21.0 |
+| Proof server | 8.1.0 (docker, 5 months old) | 9.0.0 |
+| Ledger | 8 | 9 |
+
+Also on the host: dev node images "midnight-node:latest-main" and "1.0.0", both months old, so the
+local devnet is a ledger 8 environment. Contracts compiled with 0.31.0 will not run on the public
+networks; recompiling changes verifier keys (per the compact-js release notes).
+
+midnight-js 5.0.0 carries both a ledger 8 and a ledger 9 protocol layer, so one client stack can talk to
+either; the contract artefacts, runtime and proof server must still match each other.
+
+### Migration steps (CE-20)
+Update all components together, with exact versions (no caret or tilde):
+1. `compact update 0.36.0` on the compiler host (a bare `compact update` installs the newest release).
+2. Delete `managed/` and recompile; expect syntax changes between language 0.23.0 and 0.28.0 (the
+   fold, struct and Map code here is the most likely to need edits). Re-run `crosscheck:*` and
+   `runtime:check`.
+3. `npm install --no-save @midnight-ntwrk/compact-runtime@0.21.0 @midnightntwrk/ledger-v9@1.0.0`
+   (the ledger 9 packages named by midnight-js-protocol 5.0.0) and point `scripts/prove.mjs` at
+   the ledger 9 payload functions.
+4. Run a proof server 9.0.0 (docker image `midnightntwrk/proof-server:9.0.0`) and re-run `npm run prove`.
+5. Only then decide Preprod/Mainnet deployment; none has been done.
+Status: **not started** (needs downloads on the compiler host; see `docs/SCRUM.md` CE-20).
+
+Sources: https://docs.midnight.network/relnotes/support-matrix and
+https://docs.midnight.network/how-to/fix-version-mismatches (retrieved 2026-11-16).

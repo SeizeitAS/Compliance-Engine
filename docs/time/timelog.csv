@@ -1,3 +1,6 @@
 # One row per work session. Hours are decimal (1.5 = 1h30). Never edit old rows; add a correcting row.
 # Columns: date (ISO), person, sprint (S1..), task_id (CE-n from docs/SCRUM.md), category, hours, note (no commas)
 date,person,sprint,task_id,category,hours,note
+2026-11-16,setereng,S1,CE-5,development,1.5,-ai: compile AML_Gate on Compact 0.31.0; fix reserved let with fold; crosschecks pass; push
+2026-11-16,setereng,S1,CE-6,development,0.25,-ai: rewrite PoR as Merkle sum tree; fix AML_Gate header comment
+2026-11-16,setereng,S1,CE-6,development,0.25,-ai: runtime check; proving on proof server 8.1.0; reserve package verifier; ledger 9 finding

@@ -33,7 +33,8 @@ export struct PoRReport {
   liabilities_root: Bytes<32>,
   total_liabilities: Uint<128>,
   reserves: Uint<128>,
-  attestation: Bytes<32>   // opaque hash of the reserve attestation (addresses, oracle price snapshot)
+  reserve_package: Bytes<32>, // hash of the reserve package (holdings, control proofs, prices); src/por/reserves.ts
+  attestation: Bytes<32>      // bind_attestation(period, root, reserves, reserve_package), computed in-circuit
 }
 
 // ---- public state -----------------------------------------------------------------------------
@@ -85,13 +86,27 @@ export pure circuit verify_inclusion(
   return fold(sum_step, leaf, sibling_hashes, sibling_sums, is_right);
 }
 
+// Binds a reserve package to ONE report: the attestation commits to the period, the liabilities root,
+// the reserve figure and the package hash, so a package cannot be replayed for another report.
+// An auditor recomputes it from the public report fields (see src/por/reserves.ts).
+export pure circuit bind_attestation(
+  period: Uint<64>,
+  liabilities_root: Bytes<32>,
+  reserves: Uint<128>,
+  reserve_package: Bytes<32>
+): Bytes<32> {
+  return persistentHash<Vector<5, Bytes<32>>>(
+    [pad(32, "ce.por.attest.v1"), period as Field as Bytes<32>, liabilities_root, reserves as Field as Bytes<32>, reserve_package]
+  );
+}
+
 // ---- solvency report --------------------------------------------------------------------------
 // Publish the liabilities root together with a proof that reserves cover the total it commits to.
 // Single-admin governance is a placeholder: production needs multi-party control (CE-15).
 export circuit publish_solvency_report(
   period: Uint<64>,
   reserves: Uint<128>,
-  attestation: Bytes<32>
+  reserve_package: Bytes<32>
 ): [] {
   const caller = persistentHash<Vector<2, Bytes<32>>>([pad(32, "ce.por.admin.v1"), wit_admin_secret()]);
   assert(caller == admin_commitment, "not authorised");
@@ -106,7 +121,8 @@ export circuit publish_solvency_report(
       liabilities_root: root.hash,
       total_liabilities: root.sum,
       reserves: reserves,
-      attestation: attestation
+      reserve_package: reserve_package,
+      attestation: bind_attestation(period, root.hash, reserves, reserve_package)
     })
   );
 }

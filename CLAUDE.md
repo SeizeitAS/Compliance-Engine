@@ -20,9 +20,11 @@ Blueprint: `docs/compliance_engine_documentation.md` (original draft, has known 
 
 ## Commands
 ```
-npm test                      # needs Node >= 22.18 (runs .ts directly). 36 tests, no dependencies
+npm test                      # needs Node >= 22.18 (runs .ts directly). 48 tests, no dependencies
 npm run contracts:compile     # needs the Compact toolchain (`compact` on PATH)
 npm run crosscheck:por        # same for PoR (needs: npm install --no-save @midnight-ntwrk/compact-runtime@0.16.0)
+npm run runtime:check          # runs both contracts in the runtime: 22 accept/reject checks
+npm run prove                 # real proofs via a proof server (docs/proving.md)
 npm run crosscheck:circuit    # compares compiled circuit hashes with test/vectors/ (plain Node ESM)
 npm run vectors               # regenerate golden vectors from the TypeScript reference
 npm run time:report
@@ -42,7 +44,8 @@ npm run time:report
 | CE-2 non-membership proof | Reference + tests done; circuit uncompiled |
 | CE-5 toolchain | **DONE for AML_Gate** (compiler 0.31.0, language 0.23.0, runtime 0.16.0; both crosschecks PASS). Original note: Prepared; must run on the compiler machine: `npm run contracts:compile`, then `npm run crosscheck:circuit`. Record `compact --version` and the language version in `docs/toolchain.md`. Fix real compiler errors; never edit tests to hide a mismatch |
 | CE-9 EUDI intake | Off-circuit SD-JWT VC verifier done; mdoc, revocation, Digdir sandbox test, in-circuit version outstanding |
-| CE-6 PoR sum tree | DONE for the circuit and reference (compiled, `crosscheck:por` PASS, 9 tests). Open: reserve-side proof (addresses + Assetprice), interior-sum check policy, proving/node test |
+| CE-6 PoR | DONE: sum tree, in-circuit attestation binding, reserve-package verifier (`src/por/reserves.ts`). Open: real-chain address derivation, balance reads, Merkle-anchored prices |
+| CE-20 ledger 9 migration | **Next action.** Public networks run ledger 9 (toolchain 0.36.0, language 0.28.0, runtime 0.21.0, proof server 9.0.0); repo and compiler host are ledger 8 (0.31.0 / 0.16.0 / 8.1.0). Steps in `docs/toolchain.md`; needs downloads on the compiler host, ask the owner first |
 | CE-7, 8, 10 to 19 | Backlog, see `docs/SCRUM.md` |
 
 ## Assumptions the first compile settled (2026-11-16)
