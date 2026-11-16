@@ -1,7 +1,7 @@
 # Compact toolchain and how to verify the contracts (CE-5)
 
 ## Status
-**`AML_Gate.compact` compiled and was cross-checked on 2026-11-16 (compiler 0.31.0, language 0.23.0, runtime 0.16.0). `PoR.compact` is still uncompiled (CE-6).** The development container has no
+**`AML_Gate.compact` compiled and was cross-checked on 2026-11-16 (compiler 0.31.0, language 0.23.0, runtime 0.16.0). `PoR.compact` (CE-6) compiled and was cross-checked the same day.** The development container has no
 Compact compiler (GitHub releases are blocked there) and installing third-party packages was not
 allowed, so everything below is prepared to run on a machine that has the compiler (the Preprod
 machine). Nothing in this document claims a compile has succeeded.
@@ -57,10 +57,9 @@ agree. It does **not** test proving, the ledger operations, or a node.
 
 Send the exact compiler output for anything not listed; do not edit tests to make a mismatch pass.
 
-## Not covered by CE-5
-`contracts/PoR.compact` still contains invalid, pre-compiler syntax (a Rust-style `ledger { }`
-block, `fn`, `Vector<CustomerAccount, 1024>` with an in-circuit loop). It is excluded from the
-compile script on purpose and is rewritten under CE-6.
+## PoR (CE-6)
+`contracts/PoR.compact` was rewritten as a Merkle sum tree, compiles (one proving circuit,
+`publish_solvency_report`) and passes `npm run crosscheck:por`. See `docs/proof-of-reserves.md`.
 
 ## Result of the first compile (2026-11-16)
 - `npm run contracts:compile` succeeded after one fix: `let` is a reserved word, so `compute_root` now
@@ -73,4 +72,5 @@ compile script on purpose and is rewritten under CE-6.
 - `crosscheck:hashes`: PASS, `persistentHash<Vector<3,Bytes<32>>>` equals SHA-256 of the concatenation.
 - Assumptions settled: SHA-256 layout (yes), little-endian numbers (yes), `pragma >= 0.23.0` (accepted).
   Indexing `siblings[i]` in a loop was not tested; the fold replaced it. No tests were changed.
-- Not verified: proving, execution against a node, ledger 8 vs 9 target, PoR.compact.
+- PoR: compiled; `crosscheck:por` PASS (see `docs/proof-of-reserves.md`).
+- Not verified: proving, execution against a node, ledger 8 vs 9 target, the reserve-side proof.

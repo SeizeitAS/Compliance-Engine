@@ -13,7 +13,9 @@
     "vectors": "node scripts/gen-vectors.ts > test/vectors/nonmembership-vectors.json",
     "contracts:compile": "scripts/compile-contracts.sh",
     "crosscheck:circuit": "node scripts/crosscheck-circuit.mjs",
-    "crosscheck:hashes": "node scripts/crosscheck-hashes.mjs"
+    "crosscheck:hashes": "node scripts/crosscheck-hashes.mjs",
+    "vectors:por": "node scripts/gen-por-vectors.ts > test/vectors/por-vectors.json",
+    "crosscheck:por": "node scripts/crosscheck-por.mjs"
   },
   "license": "Apache-2.0"
 }

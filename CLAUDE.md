@@ -15,13 +15,14 @@ Blueprint: `docs/compliance_engine_documentation.md` (original draft, has known 
 - **Never commit secrets, private keys, passwords, tokens, or internal network addresses and hostnames.**
   The local Compact compiler, validator and MariaDB live on the owner's LAN; their addresses stay out of git.
 - Do not open pull requests or push to other branches unless asked. Work branch: `ccr-b726918c-xbrbec`.
-- Honest status: say what is verified and what is assumed. `AML_Gate.compact` compiled and cross-checked 2026-11-16; `PoR.compact` has not been compiled.
+- Honest status: say what is verified and what is assumed. `AML_Gate.compact` compiled and cross-checked 2026-11-16; `PoR.compact` (rewritten as a Merkle sum tree, CE-6) compiled and cross-checked the same day.
 - Track work in `docs/SCRUM.md` (CE-n items); log hours in `docs/time/timelog.csv` (`docs/TIME_TRACKING.md`). Do not invent hours.
 
 ## Commands
 ```
-npm test                      # needs Node >= 22.18 (runs .ts directly). 27 tests, no dependencies
+npm test                      # needs Node >= 22.18 (runs .ts directly). 36 tests, no dependencies
 npm run contracts:compile     # needs the Compact toolchain (`compact` on PATH)
+npm run crosscheck:por        # same for PoR (needs: npm install --no-save @midnight-ntwrk/compact-runtime@0.16.0)
 npm run crosscheck:circuit    # compares compiled circuit hashes with test/vectors/ (plain Node ESM)
 npm run vectors               # regenerate golden vectors from the TypeScript reference
 npm run time:report
@@ -31,7 +32,7 @@ npm run time:report
 - `src/sanctions/indexedMerkleTree.ts`: sorted-Merkle-tree non-membership proof (reference/oracle). Depth 20, 128-bit keys, hash = SHA-256(tag32 || a32 || b32), numbers little-endian.
 - `src/eudi/sdJwtVc.ts`: SD-JWT VC (ES256) credential intake verifier (CE-9 step 1).
 - `src/i18n/`: language system. `locales/`: catalogs.
-- `contracts/AML_Gate.compact`: circuit in real Compact syntax, **not yet compiled**. `contracts/PoR.compact`: invalid pre-compiler syntax, rewrite is CE-6, excluded from compile script.
+- `contracts/AML_Gate.compact` and `contracts/PoR.compact`: both compiled and cross-checked 2026-11-16. `src/por/sumTree.ts` is the PoR reference (Merkle sum tree), `docs/proof-of-reserves.md` its design and limits.
 - `docs/`: `non-membership-proof.md`, `eudi-intake.md`, `toolchain.md`, `i18n.md`, `SCRUM.md`, `TIME_TRACKING.md`, `research/sisit-insight-review.md`.
 
 ## Status (2026-11-16)
@@ -41,7 +42,8 @@ npm run time:report
 | CE-2 non-membership proof | Reference + tests done; circuit uncompiled |
 | CE-5 toolchain | **DONE for AML_Gate** (compiler 0.31.0, language 0.23.0, runtime 0.16.0; both crosschecks PASS). Original note: Prepared; must run on the compiler machine: `npm run contracts:compile`, then `npm run crosscheck:circuit`. Record `compact --version` and the language version in `docs/toolchain.md`. Fix real compiler errors; never edit tests to hide a mismatch |
 | CE-9 EUDI intake | Off-circuit SD-JWT VC verifier done; mdoc, revocation, Digdir sandbox test, in-circuit version outstanding |
-| CE-6, 7, 8, 10 to 19 | Backlog, see `docs/SCRUM.md` |
+| CE-6 PoR sum tree | DONE for the circuit and reference (compiled, `crosscheck:por` PASS, 9 tests). Open: reserve-side proof (addresses + Assetprice), interior-sum check policy, proving/node test |
+| CE-7, 8, 10 to 19 | Backlog, see `docs/SCRUM.md` |
 
 ## Assumptions the first compile settled (2026-11-16)
 All confirmed: 1, 2 and 4 hold; 3 was replaced by `fold` because `let` is reserved. See `docs/toolchain.md`.

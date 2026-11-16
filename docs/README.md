@@ -4,6 +4,7 @@
 |---|---|
 | `compliance_engine_documentation.md` | Architectural blueprint: oracle, circuits, regulatory mapping |
 | `non-membership-proof.md` | Sanctions non-membership scheme, security notes, tests |
+| `proof-of-reserves.md` | Proof of Reserves over a Merkle sum tree: what it proves and what it does not |
 | `eudi-intake.md` | EUDI credential intake (SD-JWT VC), scope and gaps |
 | `i18n.md` | Language system and translation rules |
 | `SCRUM.md` | Roles, cadence, Definition of Done, backlog, sprint log |

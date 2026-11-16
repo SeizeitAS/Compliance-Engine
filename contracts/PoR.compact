@@ -1,55 +1,112 @@
-// DRAFT from docs/compliance_engine_documentation.md. NOT production-ready; see README 'Known gaps'.
-// WARNING: pre-compiler syntax that will NOT compile (Rust-style ledger block, `fn`, etc.).
-// Excluded from scripts/compile-contracts.sh. To be rewritten in real Compact under CE-6.
-pragma compact 0.5.1;
+// Proof of Reserves over a Merkle SUM tree of customer liabilities (CE-6).
+//
+// STATUS: DRAFT v2. Replaces the pre-compiler draft from the blueprint. Check with
+// `npm run contracts:compile` and `npm run crosscheck:por` (docs/proof-of-reserves.md).
+//
+// Why a sum tree: the first draft summed up to 1024 private balances inside the circuit, never tied
+// them to a published root, and used a uint64 sum that can overflow. Here the exchange commits to
+// ALL accounts off-chain in a Merkle sum tree (depth 20, about 1M accounts). Every node hash covers
+// both children's hashes AND sums, so the root binds the total. The circuit proves, in constant size:
+//   1. the published root is H(left node, right node) for a left/right pair the prover knows,
+//   2. the total liability is left.sum + right.sum, computed in Uint<128> so it cannot overflow,
+//   3. reserves >= total liabilities.
+// What the circuit does NOT prove (see docs/proof-of-reserves.md): that every interior sum was
+// computed honestly (customers and auditors check that with `verify_inclusion`, which re-derives the
+// root and total from one leaf path), and that the public reserves figure is true (it is an
+// attested input, bound only by an opaque attestation hash).
+//
+// Algorithm and golden vectors: src/por/sumTree.ts. Keep both in lock-step:
+//   depth = 20, balances Uint<64> in NOK minor units (ore), sums Uint<128>,
+//   hash layout H(tag32 || words), numbers 32-byte little-endian.
 
-import midnight.crypto.MerkleTree;
-import midnight.crypto.Hash;
+pragma language_version >= 0.23.0;
 
-// Define the public commitment structure published on-chain
-export struct PoRCommitment {
-    liabilities_root: bytes32,
-    total_liabilities_nok: uint64,
-    verification_timestamp: uint64,
-    onchain_reserves_address_hash: bytes32
+import CompactStandardLibrary;
+
+// A node of the sum tree: hash of the subtree plus the sum of all balances below it.
+export struct SumNode {
+  hash: Bytes<32>,
+  sum: Uint<128>
 }
 
-// Define the private witness structure processed locally by the CASP
-struct CustomerAccount {
-    account_id_hash: bytes32,
-    balance_nok: uint64,
-    salt: bytes32
+export struct PoRReport {
+  liabilities_root: Bytes<32>,
+  total_liabilities: Uint<128>,
+  reserves: Uint<128>,
+  attestation: Bytes<32>   // opaque hash of the reserve attestation (addresses, oracle price snapshot)
 }
 
-ledger {
-    // The public history of verified Proof-of-Reserves entries
-    export verified_reports: Map<uint64, PoRCommitment>;
+// ---- public state -----------------------------------------------------------------------------
+export ledger reports: Map<Uint<64>, PoRReport>;   // period (for example YYYYMM) -> report
+export ledger admin_commitment: Bytes<32>;
+
+// ---- private inputs ---------------------------------------------------------------------------
+witness wit_root_left(): SumNode;
+witness wit_root_right(): SumNode;
+witness wit_admin_secret(): Bytes<32>;
+
+constructor(admin: Bytes<32>) {
+  admin_commitment = disclose(admin);
 }
 
-// ZK Circuit definition executed inside the prover's sandbox
-export circuit verify_exchange_solvency(
-    // Public Inputs
-    public_total_liabilities: uint64,
-    public_reserves_crypto_value_nok: uint64,
-    expected_root: bytes32,
-    timestamp: uint64,
-    
-    // Private Witness Inputs
-    private_accounts: Vector<CustomerAccount, 1024>
-) : bool {
-    
-    uint64 calculated_sum = 0;
-    
-    // Loop through the private witness array inside the circuit boundaries
-    for i in 0 .. 1024 {
-        calculated_sum += private_accounts[i].balance_nok;
-    }
-    
-    // Constraint 1: Prove that the hidden sum equals the publicly asserted liability
-    assert(calculated_sum == public_total_liabilities);
-    
-    // Constraint 2: Prove mathematical solvency (Reserves must be >= Liabilities)
-    assert(public_reserves_crypto_value_nok >= public_total_liabilities);
-    
-    return true;
+// ---- hashing (pure, exported so they can be tested without a proof or a node) -----------------
+export pure circuit hash_leaf(account_id_hash: Bytes<32>, salt: Bytes<32>, balance: Uint<64>): Bytes<32> {
+  return persistentHash<Vector<4, Bytes<32>>>(
+    [pad(32, "ce.por.leaf.v1"), account_id_hash, salt, balance as Field as Bytes<32>]
+  );
+}
+
+// Parent node: the hash binds both children's hashes and sums; the sum is computed in Uint<128>.
+export pure circuit hash_node(left: SumNode, right: SumNode): SumNode {
+  const sum = (left.sum + right.sum) as Uint<128>;
+  const h = persistentHash<Vector<5, Bytes<32>>>(
+    [pad(32, "ce.por.node.v1"), left.hash, left.sum as Field as Bytes<32>, right.hash, right.sum as Field as Bytes<32>]
+  );
+  return SumNode { hash: h, sum: sum };
+}
+
+pure circuit sum_step(node: SumNode, sibling_hash: Bytes<32>, sibling_sum: Uint<128>, is_right: Boolean): SumNode {
+  const sibling = SumNode { hash: sibling_hash, sum: sibling_sum };
+  return is_right ? hash_node(sibling, node) : hash_node(node, sibling);
+}
+
+// Customer / auditor side: recompute the root and total liability from ONE account's leaf and
+// its path. A customer who finds their balance in a leaf that hashes up to the published root has
+// checked that their liability is included in the committed total.
+export pure circuit verify_inclusion(
+  account_id_hash: Bytes<32>,
+  salt: Bytes<32>,
+  balance: Uint<64>,
+  sibling_hashes: Vector<20, Bytes<32>>,
+  sibling_sums: Vector<20, Uint<128>>,
+  is_right: Vector<20, Boolean>
+): SumNode {
+  const leaf = SumNode { hash: hash_leaf(account_id_hash, salt, balance), sum: balance as Uint<128> };
+  return fold(sum_step, leaf, sibling_hashes, sibling_sums, is_right);
+}
+
+// ---- solvency report --------------------------------------------------------------------------
+// Publish the liabilities root together with a proof that reserves cover the total it commits to.
+// Single-admin governance is a placeholder: production needs multi-party control (CE-15).
+export circuit publish_solvency_report(
+  period: Uint<64>,
+  reserves: Uint<128>,
+  attestation: Bytes<32>
+): [] {
+  const caller = persistentHash<Vector<2, Bytes<32>>>([pad(32, "ce.por.admin.v1"), wit_admin_secret()]);
+  assert(caller == admin_commitment, "not authorised");
+  assert(!reports.member(disclose(period)), "period already reported");
+
+  const root = hash_node(wit_root_left(), wit_root_right());
+  assert(reserves >= root.sum, "reserves below total liabilities");
+
+  reports.insert(
+    disclose(period),
+    disclose(PoRReport {
+      liabilities_root: root.hash,
+      total_liabilities: root.sum,
+      reserves: reserves,
+      attestation: attestation
+    })
+  );
 }
