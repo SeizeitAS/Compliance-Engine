@@ -20,5 +20,5 @@ All code and documentation are English; see `CONTRIBUTING.md`.
 ## Known gaps (not production)
 1. `AML_Gate.compact` is untested against a real Compact compiler; the TypeScript SHA-256 hashing and the circuit hash differ (see `docs/non-membership-proof.md`).
 2. `PoR.compact`: `expected_root` is never checked against the private accounts, reserves are an unverified public input, the `uint64` sum can overflow, and 1024 accounts is too few (CE-6).
-3. Blueprint syntax (`pragma compact 0.5.1`, `import midnight.crypto.*`) has not been verified against the real language.
+3. Blueprint syntax and version (`pragma compact 0.5.1`, `import midnight.crypto.*`) are unverified; Sisit articles describe Compact toolchain 0.35/0.36.0 on ledger 9 (see `docs/research/sisit-insight-review.md`).
 4. Oracle Stage 1 filtering (reject outside 1 sigma) discards about a third of normal samples and is unstable with 3-4 sources; consider median/MAD.
