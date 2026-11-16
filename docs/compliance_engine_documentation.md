@@ -74,7 +74,7 @@ $$P_{filtered} = \{ P_i \mid \mu - \sigma \le P_i \le \mu + \sigma \}$$
 #### Stage 2: Correlation and Lag-Based "Source Leadership" Weighting
 Sources are not treated equally. The engine continuously calculates a historical correlation matrix over a rolling 30-day window to evaluate which feeds historically lead market discoveries and which exhibit latency (lag). Sources with higher leadership metrics and larger volume depth are assigned higher weights ($W_i$):
 
-$$P_{blended} = rac{\sum_{i=1}^{n} (P_{filtered, i} \cdot W_i)}{\sum_{i=1}^{n} W_i}$$
+$$P_{blended} = \frac{\sum_{i=1}^{n} (P_{filtered, i} \cdot W_i)}{\sum_{i=1}^{n} W_i}$$
 
 ### 3.3 Cryptographic Anchoring Roadmap
 To expose this data safely to external auditors and the Norwegian Tax Administration (Skatteetaten), Assetprice implements a **Midnight Merkle-Tree-Anchored API**. Periodic blocks of price data are hashed into a local Merkle Tree, and the root hash is published to the Midnight ledger. This allows a user to prove that a specific price feed used in a tax report was identical to the database state at that exact second, without exposing the rest of the historical dataset.
