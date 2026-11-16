@@ -47,7 +47,7 @@ npm run time:report
 | CE-6 PoR | DONE: sum tree, in-circuit attestation binding, reserve-package verifier (`src/por/reserves.ts`). Open: real-chain address derivation, balance reads, Merkle-anchored prices |
 | CE-20 ledger 9 | **DONE for build and proving** (toolchain 0.36.0, language 0.28.0, runtime 0.21.0, proof server 9.0.0): contracts compile unchanged, 22 runtime checks and both proofs pass. Open: proof verification, a deployment to Preprod (needs wallet and funds, ask the owner). The ledger 9 working copy and proof server 9.0.0 (127.0.0.1:6301) live on the compiler host, recipe in `docs/toolchain.md` |
 | CE-15 security review | IN PROGRESS: first internal pass in `docs/security-review.md`; High findings SR-1 (key not bound to identity, needs CE-9), SR-2 (reserves declared), SR-3 (single admin, CE-25) open. No production claim until closed and externally reviewed |
-| CE-21 to 26 | Reserve-side plan in `docs/reserve-side-plan.md`; owner decisions D1 to D4 needed before CE-21 |
+| CE-21 to 27 | Reserve-side plan in `docs/reserve-side-plan.md`; decisions D1 to D4 taken. Next: CE-27 (custodial attested holdings) and the CE-21 spike. Today all funds are at NBX with no keys, so on-chain control proofs run on fixtures until self-custody exists |
 | CE-7, 8, 10 to 14, 16 to 19 | Backlog, see `docs/SCRUM.md` |
 
 ## Assumptions the first compile settled (2026-11-16)

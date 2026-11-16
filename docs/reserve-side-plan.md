@@ -36,17 +36,52 @@ strict input validation. The plan generalises the control proof and fills in the
 - Multisig or script addresses, and custodial cold storage, cannot always produce a single-key signature.
 - `CONTRIBUTING.md` rule 3: no runtime dependency without discussion.
 
-## Decisions needed from the owner
-| # | Decision | Recommendation |
+## Decisions (owner, 2026-11-16)
+| # | Decision | Outcome |
 |---|---|---|
-| D1 | Dependencies for blake2b, keccak, secp256k1, bech32 and CBOR | Approve `@noble/hashes` and `@noble/curves` (zero dependencies, widely audited, ESM) and a minimal in-repo CBOR reader for COSE. Writing our own crypto is the riskier option. Pin exact versions, as the Midnight docs also advise for their stack. |
-| D2 | Balance data sources | Two independent sources per chain, one of them our own node or indexer, plus the Business 20 database as a third, non-authoritative cross-check. |
-| D3 | What counts as reserves | Only assets in addresses with a verified control proof; haircut per asset set by policy; staked or locked assets (ADA staking is liquid on Cardano; Midnight NIGHT lock-ups need checking) need an explicit rule. |
-| D4 | Custody structure | List multisig, script and HSM addresses up front; for those the scheme is a different control proof (CE-21 step 5). |
+| D1 | Dependencies | **Approved:** `@noble/hashes`, `@noble/curves`, `@scure/base`; exact versions, lockfile, used only outside the core (`sumTree`, `indexedMerkleTree`). A CONTRIBUTING.md exception is recorded when CE-21 starts. A minimal in-repo CBOR reader covers COSE. |
+| D2 | Balance sources | Self-custody balances come from the chains (own node or indexer, plus a second provider). Prices come from Assetprice; only CE-24 waits for its API, so interfaces and recorded fixtures are built first. Business 20 is the accounting record, so it is the source of the **documented** holdings list and a reconciliation cross-check, never the authority for a balance. |
+| D3 | What counts | **Document everything, count only what is proven.** Every holding appears with `counted` and a reason. It counts only with a verified control proof, an independently read balance, liquidity and no encumbrance, after the per-asset haircut. Exchange-held, staked-at-exchange, shielded and unverified holdings are documented and not counted. The legal question whether own funds may cover client liabilities (versus segregated client assets only) is open and needs a MiCA adviser. |
+| D4 | Address types | Answered, see "Situation today". |
+
+## Situation today (owner answers, 2026-11-16)
+- Seize it AS's funds are held **at NBX** (a custodial exchange). There are **no private keys** and no
+  on-chain addresses the company controls. Part of the NBX holding is **staked at NBX** (a claim on NBX).
+- Some assets are booked as held at **Coinbase**; they are to be moved to the owner privately in an
+  accounting transaction, after which they leave the company's books. Nothing is built for them.
+- Self-custody is being considered: a **Lace wallet against a multisig hardware wallet**, and the set-up
+  must work with several possible solutions, so control-proof schemes stay pluggable.
+- Everything is booked in **Business 20 Kryptoforvaltning**; reports can be extracted from there.
+
+What follows from that:
+1. **No on-chain control proof is possible for today's holdings.** Exchange-held assets are a claim on
+   a third party; the only evidence is an NBX statement. They are documented, never counted as proven
+   reserves, and labelled as third-party attested (weaker assurance).
+2. **Business 20 is not an independent source.** It records what the company believes it holds, so it
+   cannot prove it. It is still the right source for the holdings list and for reconciliation with NBX
+   statements.
+3. **Who is the first real user?** Seize it's own funds are not client liabilities, so for Seize it
+   this is a treasury attestation, not a regulatory proof of reserves. The regulatory use is a CASP
+   customer of the engine. Fixtures and a test chain stand in until a real structure exists.
+4. **Multisig changes the control proof.** A CIP-30 `signData` signature needs an address controlled by one key;
+   a script (multisig) address cannot produce one. For script addresses the proof becomes n-of-m
+   single-key signatures checked against the script. Which multisig Lace and the hardware wallets
+   support is to be verified in the CE-21 spike.
 
 ## Steps
 Story points use the project scale. Each step ends with `npm test` green and, where a circuit changes,
 the three checks (`crosscheck`, `runtime:check`, `prove`) on both ledgers.
+
+### CE-27: custodial attested holdings (3 points), first
+The only case that exists today. A holding kind `custodial-attested` carries `{ custodian, accountRef,
+statementHash, asOf, staked }` instead of a control proof. Rules: it is **never** counted as a proven
+reserve (`counted: false`, reason "third-party custody"); it is included in the package hash so it is
+tamper-evident; the report shows it in a separate section with the weaker assurance label.
+- Adds `counted` and a reason to every holding and a policy hash to the package (D3).
+- Reconciliation input for a later Business 20 adapter: Business 20 balance versus the custodian
+  statement, difference reported.
+- Acceptance: a package with only custodial holdings verifies as "documented, reserves counted = 0"; a
+  tampered statement hash changes the package hash; counted and documented totals never mix.
 
 ### CE-21: control proof schemes (8 points)
 Make `Holding.control` a tagged union `{ scheme, ... }` and verify per scheme.
@@ -94,11 +129,15 @@ Norwegian translation). This is the artefact an external auditor or Finanstilsyn
 would reference.
 
 ## Order and dependencies
-1. CE-21 step 1 spike and decisions D1 to D4 (unblocks everything).
-2. CE-21 steps 2 to 4 and CE-22 in parallel by chain (Cardano first: the longest wallet-format path).
-3. CE-23 per chain once its derivation and control proof exist.
+1. CE-27 now (needs no new dependency and matches the real situation), together with the CE-21 step 1
+   spike (CIP-30 text, Midnight scheme, which multisig Lace and the hardware wallets support).
+2. CE-21 steps 2 to 5 and CE-22 by chain, only when a self-custody set-up is chosen: until then they run
+   against test chains and vectors from real wallets. Script and multisig support (step 5) moves up if
+   the multisig hardware wallet is chosen.
+3. CE-23 per chain once its derivation and control proof exist; it needs real addresses to read.
 4. CE-24 when the Assetprice API is available; CE-26 last.
-Total 29 points, about two sprints at the current pace; the unknowns in step 1 and D1 can move that.
+Total 32 points. The sooner a real self-custody structure exists, the sooner CE-21 to CE-23 have real
+data; until 2027 they stay fixture-driven.
 
 ## Risks
 - Wallet formats change; keep vectors from real wallets in `test/vectors/` and re-run them in CI (CE-14).
