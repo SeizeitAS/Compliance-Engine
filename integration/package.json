@@ -4,6 +4,7 @@
   "private": true,
   "type": "module",
   "description": "Runs the compiled circuits against a real Midnight node (CE-29). Separate from the core, which has no dependencies.",
+  "license": "Apache-2.0",
   "engines": {
     "node": ">=22.0.0"
   },

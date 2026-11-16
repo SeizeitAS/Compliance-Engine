@@ -24,3 +24,6 @@ All code and documentation are English; see `CONTRIBUTING.md`.
 2. `PoR.compact` (CE-6): the root binds the total and sums cannot overflow; interior sums are checked only by customers/auditors (`verify_inclusion`), and the reserve figure is checked off-circuit through a signed reserve package whose real-chain address derivation and on-chain balance reads are not implemented (`docs/proof-of-reserves.md`).
 3. The blueprint's "Compact 0.5.1" is the `compact` CLI version, not the language version (0.23.0 here), and `import midnight.crypto.*` is invalid (`docs/toolchain.md`).
 4. Oracle Stage 1 filtering (reject outside 1 sigma) discards about a third of normal samples and is unstable with 3-4 sources; consider median/MAD.
+
+## License
+Apache License 2.0, see `LICENSE` and `NOTICE`. Parts of `integration/` and `infra/` are derived from Midnight Foundation examples under the same license; their headers are kept.

@@ -1,0 +1,12 @@
+Compliance Engine
+Copyright 2026 Seize it AS
+
+This product is licensed under the Apache License, Version 2.0 (see the LICENSE file).
+
+Third-party material
+
+- integration/src/wallet.ts, integration/src/providers.ts, integration/src/config.ts and
+  integration/scripts/wait-for-dust.ts are derived from the example template in
+  https://github.com/midnightntwrk/midnight-examples (Copyright (C) Midnight Foundation,
+  Apache License 2.0). Their original license headers are retained.
+- infra/ce-local/compose.yml is derived from the hello-world compose.yml in the same repository.
