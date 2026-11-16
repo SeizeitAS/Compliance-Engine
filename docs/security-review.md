@@ -60,6 +60,12 @@ user; Medium = a weakness with a known mitigation; Low = hardening; Info = to be
    built from, the list version and the leaf count, so anyone can rebuild and compare.
 4. **Reproducible build:** the root is a deterministic function of the published list (CE-7); a CI job
    and independent parties rebuild it. This is the control for SR-4.
+5. **Contract updatability:** Midnight contracts are immutable unless a Contract Maintenance Authority (a
+   multisig committee that can insert and remove verifier keys per circuit) is set up at deploy. Decide
+   deliberately: enabling it allows fixes but adds a governance key that can change circuit behaviour;
+   disabling it makes every bug permanent. If enabled, the committee and threshold belong in the same
+   governance design as the admin set, and every change must be announced. (Midnight docs, guides on
+   contract updatability; not yet verified against the version in use.)
 Each change alters the contracts, so it must be recompiled for ledger 9 and re-run through
 `crosscheck`, `runtime:check` and `prove` (all three exist now).
 

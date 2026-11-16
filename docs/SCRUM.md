@@ -55,8 +55,9 @@ Language: English only (see `locales/README.md` for user-facing translations).
 | CE-22 | Address derivation for Cardano, Ethereum and Midnight | BACKLOG | High | 5 | Plan: `docs/reserve-side-plan.md`. |
 | CE-23 | Balance snapshots from independent sources at a pinned height | BACKLOG | High | 8 | Plan: `docs/reserve-side-plan.md`. Shielded Midnight balances need a viewing key (CE-18). |
 | CE-24 | Merkle-anchored price inclusion proofs from Assetprice | BACKLOG | Medium | 5 | Plan: `docs/reserve-side-plan.md`; shares work with CE-8. |
-| CE-25 | Admin governance: rotation, k-of-n approval, timelock, source-list binding | BACKLOG | High | 8 | Design in `docs/security-review.md` (SR-3, SR-4). Changes both contracts; re-run all checks on ledger 9. |
+| CE-25 | Admin governance: rotation, k-of-n approval, timelock, source-list binding | BACKLOG | High | 8 | Design in `docs/security-review.md` (SR-3, SR-4). Changes both contracts; re-run all checks on ledger 9. Also decide contract updatability: whether to enable a Contract Maintenance Authority at deploy (verifier-key insert/remove by a multisig committee), who sits in it, and how it relates to the admin set; without it a deployed contract is immutable. |
 | CE-26 | Auditor tool `por:audit` and report | BACKLOG | Medium | 3 | Plan: `docs/reserve-side-plan.md`. |
+| CE-28 | Evaluate remote proving (zkPaaS in Google Confidential Space, or a European equivalent) as an optional proof backend | BACKLOG | Low | 3 | Spike, no build. Motivation: `prove_not_sanctioned` takes 112 s on a 4-core host (SR-14). Requirements first: the proof server sees all private inputs in the preimage (subject key, ranges, paths, admin secret, tree children), so a remote backend needs a GDPR assessment, an accepted TEE trust model, and `PROOF_SERVER` stays configuration. Check whether the published reference architecture exposes the proof-server API (`/check`, `/prove`). Source: Google Cloud case for Midnight Foundation; sisit.no article 2026-11-16. |
 
 ## 5. Sprint log
 
