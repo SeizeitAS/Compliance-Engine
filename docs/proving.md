@@ -22,6 +22,16 @@ Result on 2026-11-16 against proof server **8.1.0** (ledger 8) with compiler 0.3
 | `AML_Gate.prove_not_sanctioned` | accepted | 4508 bytes, 40 to 87 s on a 4-core host (first call loads keys) |
 | `PoR.publish_solvency_report` | accepted | 4508 bytes, 3 to 7 s |
 
+Ledger 9 (compiler 0.36.0, compact-runtime 0.21.0, proof server **9.0.0**, same day):
+
+| Circuit | /check | /prove |
+|---|---|---|
+| `AML_Gate.prove_not_sanctioned` | accepted | 5420 bytes, 112 s |
+| `PoR.publish_solvency_report` | accepted | 5420 bytes, 5 s |
+
+Setup for ledger 9 is in `docs/toolchain.md` ("Ledger 9 migration"); run with `LEDGER=9` and the
+ledger 9 proof server URL.
+
 `update_sanctions_root` is a proving circuit too and has been exercised only in `runtime:check`.
 
 Setup on the compiler host:
@@ -36,7 +46,7 @@ The packages must match the ledger version of the compiler output and the proof 
 ## What is still not verified
 - The generated proofs were **not verified** (no verifier call, no ledger application).
 - No transaction: nothing was deployed or submitted; wallet, DUST fees and indexer are untouched.
-- The numbers are for ledger 8. Public networks now run ledger 9 (see `docs/toolchain.md`), where the
-  circuits must be recompiled and re-proved.
+- Public networks run ledger 9, and the ledger 9 build is proved as shown above. Neither build has been
+  deployed or submitted to a network.
 - `/check` and `/prove` accept only witnesses that satisfy the circuit, so a rejected witness never
   reaches the prover; the negative cases are covered by `runtime:check`, not by the server.

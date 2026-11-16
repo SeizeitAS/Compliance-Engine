@@ -20,7 +20,7 @@ npm run time:report
 All code and documentation are English; see `CONTRIBUTING.md`.
 
 ## Known gaps (not production)
-1. Both circuits compile, are runtime-checked (22 checks) and were proved with a proof server, but all of that is **ledger 8** (compiler 0.31.0). Public Midnight networks now run **ledger 9** (toolchain 0.36.0), so the contracts must be recompiled and re-proved (CE-20, `docs/toolchain.md`). Nothing has been deployed or submitted, and the generated proofs were not verified.
+1. Both circuits compile, are runtime-checked (22 checks) and were proved with a proof server on **ledger 8** (compiler 0.31.0) and on **ledger 9** (toolchain 0.36.0, the version the public networks run; CE-20, `docs/toolchain.md`). Nothing has been deployed or submitted, and the generated proofs were not verified.
 2. `PoR.compact` (CE-6): the root binds the total and sums cannot overflow; interior sums are checked only by customers/auditors (`verify_inclusion`), and the reserve figure is checked off-circuit through a signed reserve package whose real-chain address derivation and on-chain balance reads are not implemented (`docs/proof-of-reserves.md`).
 3. The blueprint's "Compact 0.5.1" is the `compact` CLI version, not the language version (0.23.0 here), and `import midnight.crypto.*` is invalid (`docs/toolchain.md`).
 4. Oracle Stage 1 filtering (reject outside 1 sigma) discards about a third of normal samples and is unstable with 3-4 sources; consider median/MAD.

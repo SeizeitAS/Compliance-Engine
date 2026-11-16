@@ -96,18 +96,35 @@ networks; recompiling changes verifier keys (per the compact-js release notes).
 midnight-js 5.0.0 carries both a ledger 8 and a ledger 9 protocol layer, so one client stack can talk to
 either; the contract artefacts, runtime and proof server must still match each other.
 
-### Migration steps (CE-20)
-Update all components together, with exact versions (no caret or tilde):
-1. `compact update 0.36.0` on the compiler host (a bare `compact update` installs the newest release).
-2. Delete `managed/` and recompile; expect syntax changes between language 0.23.0 and 0.28.0 (the
-   fold, struct and Map code here is the most likely to need edits). Re-run `crosscheck:*` and
-   `runtime:check`.
-3. `npm install --no-save @midnight-ntwrk/compact-runtime@0.21.0 @midnightntwrk/ledger-v9@1.0.0`
-   (the ledger 9 packages named by midnight-js-protocol 5.0.0) and point `scripts/prove.mjs` at
-   the ledger 9 payload functions.
-4. Run a proof server 9.0.0 (docker image `midnightntwrk/proof-server:9.0.0`) and re-run `npm run prove`.
-5. Only then decide Preprod/Mainnet deployment; none has been done.
-Status: **not started** (needs downloads on the compiler host; see `docs/SCRUM.md` CE-20).
+### Ledger 9 migration (CE-20), done 2026-11-16
+Both contracts build, run and prove on the ledger 9 stack. Nothing was deployed.
+1. `compact update 0.36.0 --no-set-default` installed toolchain 0.36.0 next to 0.31.0 and left the host
+   default untouched (other projects on the host still use 0.31.0). Use it with
+   `COMPACT_VERSION=0.36.0 OUT_DIR=managed-l9 npm run contracts:compile`.
+2. **No source changes were needed:** both contracts compile unchanged with 0.36.0 (language 0.28.0,
+   runtime 0.21.0; `pragma language_version >= 0.23.0` still accepted). Verifier keys differ from the
+   0.31.0 build, as expected.
+3. A second working copy holds the ledger 9 packages, because one `node_modules` can only hold one
+   runtime: copy the repo (without `node_modules`), put the ledger 9 output at `managed/`, then
+   `npm install --no-save @midnight-ntwrk/compact-runtime@0.21.0 @midnightntwrk/ledger-v9@1.0.0`.
+4. Proof server 9.0.0 runs beside 8.1.0 (`docker run -d --name proof-server-l9 -p 127.0.0.1:6301:6300
+   midnightntwrk/proof-server:9.0.0`). On first start it downloads and verifies its parameters from
+   srs.midnight.network, so the host needs outbound access once.
+5. Results in the ledger 9 copy (Node 18.19.1):
+   - `crosscheck:circuit`, `crosscheck:por`: PASS (hashes and layout are identical to ledger 8).
+   - `runtime:check`: 22 of 22 PASS.
+   - `LEDGER=9 PROOF_SERVER=http://localhost:6301 npm run prove`: both circuits proved, 5420 bytes each
+     (4508 on ledger 8); AML 112 s, PoR 5 s.
+
+API differences handled in `scripts/lib/harness.mjs` (the same checks run on both ledgers):
+- `createCircuitContext` takes an options object including the circuit name (0.16.0: positional).
+- Contract `initialState` and the circuits return Promises (ledger 8: plain values).
+- The context nests state under `callContext`; proof data is in `callProofDataTrace` instead of
+  `result.proofData`.
+- Generated contracts also export `expectedVk`.
+
+Still open: the generated proofs are not verified, nothing is deployed to Preprod or Mainnet, and the
+ledger 8 artefacts remain only useful for the local devnet.
 
 Sources: https://docs.midnight.network/relnotes/support-matrix and
 https://docs.midnight.network/how-to/fix-version-mismatches (retrieved 2026-11-16).

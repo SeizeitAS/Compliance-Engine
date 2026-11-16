@@ -15,12 +15,27 @@ const pad32 = (t) => Buffer.concat([Buffer.from(t, "ascii"), Buffer.alloc(32 - t
 export const adminCommitment = (tag, secret) => Uint8Array.from(createHash("sha256").update(pad32(tag)).update(secret).digest());
 export const COIN_PK = "00".repeat(32);
 
+// compact-runtime 0.16.0 (ledger 8) takes positional arguments; 0.21.0 (ledger 9) takes an options
+// object with the circuit name. Both are supported so the same checks run on either ledger.
+const OPTIONS_API = rt.createCircuitContext.length === 1;
+// dummyContractAddress: sampleContractAddress needs a WebCrypto global that Node 18 lacks.
+const makeCtx = (circuitId, zswapOrKey, state, privateState) =>
+  OPTIONS_API
+    ? rt.createCircuitContext({ circuitId, contractAddress: rt.dummyContractAddress(), coinPublicKeyOrZswapState: zswapOrKey, contractState: state, privateState })
+    : rt.createCircuitContext(rt.dummyContractAddress(), zswapOrKey, state, privateState);
+
+// The context shape differs too: 0.16.0 keeps the query context and private state at the top level,
+// 0.21.0 nests them under `callContext` and keeps proof data in `callProofDataTrace`.
+const cc = (ctx) => ctx.callContext ?? ctx;
+export const stateOf = (ctx) => cc(ctx).currentQueryContext.state;
+export const proofDataOf = (result) => result.proofData ?? result.context.callProofDataTrace?.at(-1);
+
 /** Deploy a contract in memory; `call` runs an impure circuit and carries the state forward. */
-export const deploy = (Contract, witnesses, privateState, ...ctorArgs) => {
+// Circuits and initialState return Promises on ledger 9 and plain values on ledger 8; always await.
+export const deploy = async (Contract, witnesses, privateState, ...ctorArgs) => {
   const c = new Contract(witnesses);
-  const init = c.initialState(rt.createConstructorContext(privateState, COIN_PK), ...ctorArgs);
-  // dummyContractAddress: sampleContractAddress needs a WebCrypto global that Node 18 lacks.
-  let ctx = rt.createCircuitContext(rt.dummyContractAddress(), COIN_PK, init.currentContractState, privateState);
+  const init = await c.initialState(rt.createConstructorContext(privateState, COIN_PK), ...ctorArgs);
+  let ctx = makeCtx("constructor", COIN_PK, init.currentContractState, privateState);
   return {
     c,
     get ctx() {
@@ -29,8 +44,16 @@ export const deploy = (Contract, witnesses, privateState, ...ctorArgs) => {
     set ctx(v) {
       ctx = v;
     },
-    call(name, ...args) {
-      const r = c.impureCircuits[name](ctx, ...args);
+    get state() {
+      return stateOf(ctx);
+    },
+    setPrivate(ps) {
+      ctx = OPTIONS_API ? { ...ctx, callContext: { ...ctx.callContext, currentPrivateState: ps } } : { ...ctx, currentPrivateState: ps };
+    },
+    async call(name, ...args) {
+      // The options API binds a context to one circuit, so rebuild it from the evolving state.
+      if (OPTIONS_API) ctx = makeCtx(name, cc(ctx).currentZswapLocalState, stateOf(ctx), cc(ctx).currentPrivateState);
+      const r = await c.impureCircuits[name](ctx, ...args);
       ctx = r.context;
       return r;
     },
