@@ -8,5 +8,17 @@
   "errors.nonmembership.BAD_PATH_LENGTH": "Merkle-stien har feil lengde eller indeks.",
   "errors.nonmembership.ROOT_MISMATCH": "Beviset samsvarer ikke med den publiserte roten til sanksjonslisten.",
   "report.accounts.one": "{count} konto er inkludert i reservebeviset.",
-  "report.accounts.other": "{count} kontoer er inkludert i reservebeviset."
+  "report.accounts.other": "{count} kontoer er inkludert i reservebeviset.",
+  "errors.intake.MALFORMED": "Fremvisningen av legitimasjonsbeviset er ugyldig utformet.",
+  "errors.intake.UNSUPPORTED_ALG": "Beviset bruker en algoritme som ikke støttes. Bare ES256 med SHA-256 godtas.",
+  "errors.intake.UNTRUSTED_ISSUER": "Utstederen står ikke på listen over godkjente utstedere, eller oppføringen er ikke gyldig nå.",
+  "errors.intake.BAD_SIGNATURE": "Utstederens signatur er ugyldig.",
+  "errors.intake.EXPIRED": "Legitimasjonsbeviset er utløpt.",
+  "errors.intake.NOT_YET_VALID": "Legitimasjonsbeviset er ikke gyldig ennå.",
+  "errors.intake.BAD_VCT": "Typen legitimasjonsbevis godtas ikke.",
+  "errors.intake.DISCLOSURE_INVALID": "En avslørt opplysning er ugyldig utformet, duplisert eller i konflikt med en annen.",
+  "errors.intake.DISCLOSURE_NOT_REFERENCED": "En avslørt opplysning er ikke dekket av utstederens signatur.",
+  "errors.intake.MISSING_IDENTIFIER": "Identifikatoren som trengs for screeningen, ble ikke avslørt.",
+  "errors.intake.HOLDER_BINDING_REQUIRED": "Det kreves bevis for at innehaveren selv har lagt fram beviset.",
+  "errors.intake.HOLDER_BINDING_INVALID": "Innehaverbindingen er ugyldig, for gammel, eller laget for en annen forespørsel."
 }

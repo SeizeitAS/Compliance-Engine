@@ -2,6 +2,7 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import { fileURLToPath } from "node:url";
 import { createTranslator, loadCatalogs, fallbackChain, negotiateLocale } from "../src/i18n/index.ts";
+import { INTAKE_FAILURES } from "../src/eudi/sdJwtVc.ts";
 import { SanctionsTree, verifyNonMembership, deriveKey } from "../src/sanctions/indexedMerkleTree.ts";
 
 const dir = fileURLToPath(new URL("../locales", import.meta.url));
@@ -47,4 +48,11 @@ test("proof failure reasons all have messages in every shipped locale", () => {
   const k = deriveKey("someone");
   const res = verifyNonMembership(t.root, k, { ...t.prove(k)!, siblings: [] }, 4);
   assert.equal(res.valid, false);
+});
+
+test("every credential intake failure reason has a message in every shipped locale", () => {
+  for (const loc of Object.keys(catalogs)) {
+    const tr = createTranslator({ locale: loc, catalogs });
+    for (const r of INTAKE_FAILURES) assert.ok(tr.has(`errors.intake.${r}`), `${loc} lacks ${r}`);
+  }
 });

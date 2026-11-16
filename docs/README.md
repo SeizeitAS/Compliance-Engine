@@ -4,6 +4,7 @@
 |---|---|
 | `compliance_engine_documentation.md` | Architectural blueprint: oracle, circuits, regulatory mapping |
 | `non-membership-proof.md` | Sanctions non-membership scheme, security notes, tests |
+| `eudi-intake.md` | EUDI credential intake (SD-JWT VC), scope and gaps |
 | `i18n.md` | Language system and translation rules |
 | `SCRUM.md` | Roles, cadence, Definition of Done, backlog, sprint log |
 | `TIME_TRACKING.md` | Time log convention and reporting |

@@ -38,7 +38,7 @@ Language: English only (see `locales/README.md` for user-facing translations).
 | CE-6 | Bind Proof-of-Reserves circuit to the liabilities Merkle root and fix overflow | BACKLOG | High | 8 | See README "Known gaps". |
 | CE-7 | Sanctions list ingestion pipeline (official lists to sorted tree root) | BACKLOG | High | 8 | Normalisation rules for names and IDs must be specified and reviewed. |
 | CE-8 | Assetprice integration: signed NOK prices into PoR | BACKLOG | Medium | 5 | Consume the `assetprice` HTTP API; anchor Merkle roots on Midnight (AP12/AP14 there). |
-| CE-9 | EUDI credential intake: verify an issuer-signed SD-JWT VC / mdoc (P-256) inside the AML circuit | BACKLOG | High | 8 | See `docs/research/sisit-insight-review.md` item 1. Test against the Digdir sandbox. Depends on CE-5. |
+| CE-9 | EUDI credential intake: verify an issuer-signed SD-JWT VC / mdoc (P-256) inside the AML circuit | IN PROGRESS | High | 8 | Step 1 DONE: off-circuit SD-JWT VC reference verifier + tests (`src/eudi/`, `docs/eudi-intake.md`). Remaining: Digdir sandbox test, mdoc, revocation, and the in-circuit version (blocked on CE-5). |
 | CE-10 | Business wallet (virksomhetslommebok / EU Business Wallet) support and entity-level (KYB) gate | BACKLOG | Medium | 8 | Store full EUID, look up by organisation number. Regulation is still a proposal (COM(2025) 838). Start with a requirements spike. |
 | CE-11 | Midnight Passport spike | BACKLOG | Low | 2 | Scoped: onboarding/wallet layer plus v2 issuer registry (planned Q1 2027). Re-evaluate after Passport SDK v1 ships. Keep behind our own interface. |
 | CE-12 | NIS2 / digitalsikkerhetsloven ZK security-reporting module | BACKLOG | Low | 5 | Mentioned in a sisit.no article as a planned pilot. |

@@ -8,5 +8,17 @@
   "errors.nonmembership.BAD_PATH_LENGTH": "The Merkle path has the wrong length or index.",
   "errors.nonmembership.ROOT_MISMATCH": "The proof does not match the published sanctions list root.",
   "report.accounts.one": "{count} account included in the proof of reserves.",
-  "report.accounts.other": "{count} accounts included in the proof of reserves."
+  "report.accounts.other": "{count} accounts included in the proof of reserves.",
+  "errors.intake.MALFORMED": "The credential presentation is malformed.",
+  "errors.intake.UNSUPPORTED_ALG": "The credential uses an unsupported signature or hash algorithm. Only ES256 with SHA-256 is accepted.",
+  "errors.intake.UNTRUSTED_ISSUER": "The credential issuer is not on the trusted issuer list, or its entry is not valid at this time.",
+  "errors.intake.BAD_SIGNATURE": "The issuer signature is invalid.",
+  "errors.intake.EXPIRED": "The credential has expired.",
+  "errors.intake.NOT_YET_VALID": "The credential is not valid yet.",
+  "errors.intake.BAD_VCT": "The credential type is not accepted.",
+  "errors.intake.DISCLOSURE_INVALID": "A disclosed claim is malformed, duplicated or conflicts with another claim.",
+  "errors.intake.DISCLOSURE_NOT_REFERENCED": "A disclosed claim is not covered by the issuer signature.",
+  "errors.intake.MISSING_IDENTIFIER": "The identifier needed for screening was not disclosed.",
+  "errors.intake.HOLDER_BINDING_REQUIRED": "Proof that the holder presented this credential is required.",
+  "errors.intake.HOLDER_BINDING_INVALID": "The holder binding proof is invalid, stale, or was made for a different request."
 }
