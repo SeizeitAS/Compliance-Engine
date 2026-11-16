@@ -1,39 +1,100 @@
-// DRAFT from docs/compliance_engine_documentation.md. NOT production-ready; see README 'Known gaps'.
-pragma compact 0.5.1;
+// AML sanctions gate: zero-knowledge NON-MEMBERSHIP proof against a sorted Merkle tree.
+//
+// STATUS: DRAFT. Not compiled against a real Compact toolchain. Syntax and standard-library
+// names must be checked against the current Compact release before use. The algorithm is
+// specified and tested in src/sanctions/indexedMerkleTree.ts; this circuit must stay in
+// lock-step with it (KEY_BITS = 128, depth = 20, same leaf/node domain separation).
+//
+// Scheme: the sanctions list is a sorted list of keys k_1 < ... < k_n. Leaf i commits to the
+// range (lo_i, hi_i) between two adjacent keys (sentinels 0 and 2^128). A subject key x is not
+// listed iff some committed leaf satisfies lo < x < hi. The subject key, range and Merkle path
+// stay private; only the list root, list version and a receipt commitment become public.
 
-// Configuration for identity verification status
-export struct AMLProofHeader {
-    proof_id: bytes32,
-    issuing_bank_licence_hash: bytes32,
-    expiration_date: uint64,
-    sanction_list_version_hash: bytes32
+pragma language_version >= 0.16;
+
+import CompactStandardLibrary;
+
+export const TREE_DEPTH = 20;
+
+struct PathStep {
+  sibling: Bytes<32>;
+  node_is_right: Boolean; // true if the running node is the RIGHT child at this level
 }
 
-export circuit verify_sanctions_compliance(
-    // Public Parameters
-    header: AMLProofHeader,
-    current_time: uint64,
-    
-    // Private Parameters (Kept entirely inside the user's localized state)
-    private_customer_name_hash: bytes32,
-    private_national_id_hash: bytes32,
-    sanction_list_merkle_root: bytes32,
-    exclusion_proof: Vector<bytes32, 32>
-) : bool {
-    
-    // Constraint 1: Check that the cryptographic proof has not expired
-    assert(header.expiration_date > current_time);
-    
-    // Constraint 2: Verify Cryptographic Non-Membership Proof in Sanction Merkle Tree
-    // Evaluates that the private_national_id_hash does not exist within the banned root
-    bool is_excluded = verify_non_membership(sanction_list_merkle_root, private_national_id_hash, exclusion_proof);
-    assert(is_excluded == true);
-    
-    return true;
+// Domain separation tags (must match the TypeScript reference implementation).
+const TAG_LEAF: Field = 0;
+const TAG_NODE: Field = 1;
+
+ledger sanctions_root: Bytes<32>;
+ledger list_version: Uint<64>;
+ledger admin: Bytes<32>;                 // hash of the admin public key
+ledger receipts: Set<Bytes<32>>;         // opaque screening receipts, contains no PII
+
+// Private inputs, supplied by the prover's local environment only.
+witness subject_key(): Uint<128>;        // first 128 bits of SHA-256(domain || normalised ID)
+witness range_lo(): Uint<128>;
+witness range_hi(): Uint<128>;           // 2^128 sentinel is represented by 2^128 - 1 + flag below
+witness range_hi_is_sentinel(): Boolean;
+witness merkle_path(): Vector<20, PathStep>;
+witness receipt_nonce(): Bytes<32>;
+witness admin_secret(): Bytes<32>;
+
+constructor(initial_root: Bytes<32>, admin_hash: Bytes<32>) {
+  sanctions_root = disclose(initial_root);
+  list_version = 1;
+  admin = disclose(admin_hash);
 }
 
-// Mock internal method for cryptographic tree routing
-fn verify_non_membership(root: bytes32, leaf: bytes32, proof: Vector<bytes32, 32>) : bool {
-    // Cryptographic evaluation path logic goes here
-    return true;
+circuit hash_leaf(lo: Uint<128>, hi: Uint<128>, hi_sentinel: Boolean): Bytes<32> {
+  return persistentHash<Vector<4, Field>>([TAG_LEAF, lo as Field, hi as Field, hi_sentinel ? 1 : 0]);
+}
+
+circuit hash_node(l: Bytes<32>, r: Bytes<32>): Bytes<32> {
+  return persistentHash<Vector<3, Bytes<32>>>([TAG_NODE as Bytes<32>, l, r]);
+}
+
+// Walks the path and returns the recomputed root.
+circuit compute_root(leaf: Bytes<32>, path: Vector<20, PathStep>): Bytes<32> {
+  let node = leaf;
+  for (const step of path) {
+    node = step.node_is_right ? hash_node(step.sibling, node) : hash_node(node, step.sibling);
+  }
+  return node;
+}
+
+// Prove that the private subject key is NOT on the sanctions list committed to on-chain.
+// Records an opaque receipt so the screening is auditable without revealing the subject.
+export circuit prove_not_sanctioned(): Bytes<32> {
+  const x = subject_key();
+  const lo = range_lo();
+  const hi = range_hi();
+  const hi_sentinel = range_hi_is_sentinel();
+
+  // Constraint 1: x lies strictly inside the committed range. Strictness is what makes a
+  // listed key unprovable: listed keys are always an endpoint of some range, never interior.
+  assert(x > 0, "key must be non-zero");
+  assert(lo < x, "key must be above range start");
+  assert(hi_sentinel || x < hi, "key must be below range end");
+
+  // Constraint 2: the range leaf is part of the CURRENT on-chain sanctions tree.
+  const leaf = hash_leaf(lo, hi, hi_sentinel);
+  const root = compute_root(leaf, merkle_path());
+  assert(root == sanctions_root, "range is not in the committed sanctions list");
+
+  // Receipt binds the screening to the list version and a private nonce. It reveals neither
+  // the subject nor the range. The subject can later open it to an auditor by revealing the nonce.
+  const receipt = persistentHash<Vector<3, Bytes<32>>>([
+    receipt_nonce(),
+    (list_version as Field) as Bytes<32>,
+    (x as Field) as Bytes<32>
+  ]);
+  receipts.insert(disclose(receipt));
+  return disclose(receipt);
+}
+
+// Publish a new sanctions list root (for example after an official list update).
+export circuit update_sanctions_root(new_root: Bytes<32>): [] {
+  assert(persistentHash<Vector<1, Bytes<32>>>([admin_secret()]) == admin, "not authorised");
+  sanctions_root = disclose(new_root);
+  list_version = (list_version + 1) as Uint<64>;
 }

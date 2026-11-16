@@ -1,0 +1,3 @@
+# One row per work session. Hours are decimal (1.5 = 1h30). Never edit old rows; add a correcting row.
+# Columns: date (ISO), person, sprint (S1..), task_id (CE-n from docs/SCRUM.md), category, hours, note (no commas)
+date,person,sprint,task_id,category,hours,note

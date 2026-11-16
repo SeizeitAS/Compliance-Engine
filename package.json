@@ -1,0 +1,13 @@
+{
+  "name": "compliance-engine",
+  "version": "0.1.0",
+  "description": "Zero-knowledge compliance engine for MiCA, AMLR and Norwegian AML law on Midnight",
+  "private": true,
+  "type": "module",
+  "engines": { "node": ">=22.18" },
+  "scripts": {
+    "test": "node --test \"test/*.test.ts\"",
+    "time:report": "node scripts/time-report.ts docs/time/timelog.csv"
+  },
+  "license": "Apache-2.0"
+}

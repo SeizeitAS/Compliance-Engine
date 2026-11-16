@@ -5,10 +5,20 @@ fed by the [Assetprice](https://github.com/SeizeitAS/assetprice) multi-source NO
 
 - `docs/compliance_engine_documentation.md` – architectural blueprint
 - `contracts/PoR.compact` – Proof-of-Reserves circuit (draft)
-- `contracts/AML_Gate.compact` – sanctions non-membership circuit (draft)
+- `contracts/AML_Gate.compact` – sanctions non-membership circuit (draft, not yet compiled)
+- `src/sanctions/` – tested reference implementation of the non-membership proof
+- `src/i18n/`, `locales/` – language system (English source, Norwegian translation)
+- `docs/` – see `docs/README.md` (scrum, time tracking, proof design, research)
 
-## Known gaps (blueprint drafts, not production)
-1. `AML_Gate.compact`: `verify_non_membership` is a stub that always returns `true`, so the gate currently proves nothing.
-2. `PoR.compact`: `expected_root` is never checked against the private accounts, so the summed balances are not bound to the published liabilities root; reserves are an unverified public input (no link to on-chain addresses or Assetprice values); `uint64` sum can overflow; the 1024-account vector needs batching/recursion for real customer counts.
-3. Syntax has not been compiled; verify against the current Compact compiler (the blueprint's `pragma compact 0.5.1` / `import midnight.crypto.*` may not match the real language and stdlib).
-4. Stage 1 oracle filtering (reject outside ±1σ) discards roughly a third of samples even with normal data and is unstable with 3–4 sources; consider median/MAD.
+## Quick start
+```
+npm test            # proof library and i18n tests (Node >= 22.18, no dependencies)
+npm run time:report
+```
+All code and documentation are English; see `CONTRIBUTING.md`.
+
+## Known gaps (not production)
+1. `AML_Gate.compact` is untested against a real Compact compiler; the TypeScript SHA-256 hashing and the circuit hash differ (see `docs/non-membership-proof.md`).
+2. `PoR.compact`: `expected_root` is never checked against the private accounts, reserves are an unverified public input, the `uint64` sum can overflow, and 1024 accounts is too few (CE-6).
+3. Blueprint syntax (`pragma compact 0.5.1`, `import midnight.crypto.*`) has not been verified against the real language.
+4. Oracle Stage 1 filtering (reject outside 1 sigma) discards about a third of normal samples and is unstable with 3-4 sources; consider median/MAD.

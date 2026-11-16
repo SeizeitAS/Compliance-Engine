@@ -1,0 +1,12 @@
+{
+  "app.name": "Compliance Engine",
+  "screening.passed": "Screening passed: the subject is not on sanctions list version {version}.",
+  "screening.failed": "Screening failed: the subject cannot be proven absent from the sanctions list.",
+  "screening.receipt": "Receipt {receipt} recorded.",
+  "errors.nonmembership.KEY_OUT_OF_DOMAIN": "The subject key is outside the valid key range.",
+  "errors.nonmembership.KEY_NOT_IN_RANGE": "The subject key is not strictly inside the proven range; it may be listed.",
+  "errors.nonmembership.BAD_PATH_LENGTH": "The Merkle path has the wrong length or index.",
+  "errors.nonmembership.ROOT_MISMATCH": "The proof does not match the published sanctions list root.",
+  "report.accounts.one": "{count} account included in the proof of reserves.",
+  "report.accounts.other": "{count} accounts included in the proof of reserves."
+}

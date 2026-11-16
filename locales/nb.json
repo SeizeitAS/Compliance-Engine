@@ -1,0 +1,12 @@
+{
+  "app.name": "Compliance Engine",
+  "screening.passed": "Screening bestått: personen står ikke på sanksjonslisten, versjon {version}.",
+  "screening.failed": "Screening ikke bestått: det kan ikke bevises at personen ikke står på sanksjonslisten.",
+  "screening.receipt": "Kvittering {receipt} er registrert.",
+  "errors.nonmembership.KEY_OUT_OF_DOMAIN": "Nøkkelen ligger utenfor gyldig verdiområde.",
+  "errors.nonmembership.KEY_NOT_IN_RANGE": "Nøkkelen ligger ikke strengt innenfor det beviste intervallet. Den kan stå på listen.",
+  "errors.nonmembership.BAD_PATH_LENGTH": "Merkle-stien har feil lengde eller indeks.",
+  "errors.nonmembership.ROOT_MISMATCH": "Beviset samsvarer ikke med den publiserte roten til sanksjonslisten.",
+  "report.accounts.one": "{count} konto er inkludert i reservebeviset.",
+  "report.accounts.other": "{count} kontoer er inkludert i reservebeviset."
+}
