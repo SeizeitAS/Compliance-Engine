@@ -7,6 +7,7 @@
 | `proof-of-reserves.md` | Proof of Reserves over a Merkle sum tree: what it proves and what it does not |
 | `security-review.md` | First internal security pass (CE-15): findings, severities, what was and was not reviewed |
 | `reserve-side-plan.md` | Plan for the reserve side of PoR: control proof schemes, address derivation, balance sources, prices |
+| `../integration/README.md` | The circuits against a real node: how to run `chain:check`, safety, provenance of the derived files |
 | `network-plan.md` | Plan to verify the proofs in a real node (local network) and run a Preprod smoke test: facts, decisions, steps, risks |
 | `proving.md` | Runtime execution and real proving of the circuits, with results and limits |
 | `eudi-intake.md` | EUDI credential intake (SD-JWT VC), scope and gaps |

@@ -1,6 +1,6 @@
 # Plan: verify the proofs and deploy on a real Midnight network (CE-29, CE-30)
 
-Status: **plan, nothing created or downloaded yet.** Date: 2026-11-16. Facts come from the Midnight
+Status: **Phase 1 (CE-29) done on the local network, 2026-11-16; Phase 2 (CE-30, Preprod) not started.** Date: 2026-11-16. Facts come from the Midnight
 documentation retrieved the same day (sources at the end); items marked "to check" were not on the pages.
 
 ## Goal
@@ -120,6 +120,27 @@ are answered; Phase 2 waits for D7 and D8.
 ## Cleaning up
 Local stack: `docker compose down` (and remove its volumes) on shaun3, delete the cloned repository and the
 Node 22 install if one was added. Preprod: delete `.env.preprod`, nothing else persists.
+
+## Phase 1 results and deviations from the plan (2026-11-16)
+- **The planned repository was archived.** `midnight-local-dev` pins ledger 8 images (node 1.0.0, indexer 4.3.3,
+  proof server 8.1.0) and points to `midnight-examples`, which is ledger 9 (`toolchain.json`: node 2.1.101,
+  indexer 4.4.101, proof server 9.0.0, wallet SDK 2.0.0, midnight-js 5.0.0). That one was used: the owner approved starting Phase 1 and its downloads but had not
+  named this repository (the archived one points to it); the archived clone was deleted.
+- **Stack** (`infra/ce-local/compose.yml`): node image 1.08 GB and indexer image 321 MB, host ports 19944 and
+  18088, the existing ledger 9 proof server on 6301 reused. The runtime reports spec version 2001100
+  (ledger 9); `midnight_ledgerVersion` returns `1.0.1`, not a 9.x string. Memory stayed small: node 76 to
+  200 MiB, indexer 35 to 95 MiB, host available memory never below 4 GB with the older containers left running.
+  The proof server 8.1.0 was not stopped.
+- **Client:** Node 22.23.5 in `~/node22` (tarball checksum verified) on shaun3, so the Windows PC stayed free;
+  `integration/` holds about 410 MB of `node_modules`.
+- **Wallet:** the local network's dev genesis wallet, funded and holding DUST at once; no new wallet was
+  created (D7 does not apply locally).
+- **Results:** see `docs/proving.md`. Deviation from the acceptance criteria: a wrong verifier key is refused by
+  the client and the proof server before the node, so the node-level rejection is shown for a corrupted proof only.
+- **D9 (maintenance authority):** test deploys used the client's default (a freshly sampled signing key); the
+  real decision stays with CE-25.
+- **Left running on shaun3:** the ce-local node and indexer containers (light) and `proof-server-l9`.
+  Stop with `docker compose -f infra/ce-local/compose.yml down`.
 
 ## Sources (retrieved 2026-11-16)
 - Networks and environments: https://docs.midnight.network/guides/networks-and-environments

@@ -59,11 +59,39 @@ was accepted. So the wasm `wellFormed` does not check contract proofs (the scrip
 and will say so if a later version starts rejecting them). A first version of this check claimed "proof
 verified"; those claims were withdrawn once the controls were run.
 
+## `integration/` against a real node (CE-29, 2026-11-16)
+`integration/scripts/chain-check.ts` (`integration/README.md`) deploys both contracts to a **real Midnight
+node on a local ledger 9 network** (node 2.1.101, runtime spec version 2001100, indexer 4.4.101, proof
+server 9.0.0, midnight-js 5.0.0, wallet SDK 2.0.0), calls the circuits through the normal path with the
+local network's dev wallet and DUST fees, and reads the state back through the indexer. All checks pass in
+one run:
+- **Accepted by the node:** `publish_solvency_report` (PoR), `prove_not_sanctioned` and
+  `update_sanctions_root` (AML_Gate). The state read through the indexer matches the runtime-check
+  expectations, and the on-chain PoR attestation equals the one `src/por/reserves.ts` computes. Timings on
+  the 4-core host: PoR deploy about 20 s and call about 25 s; `prove_not_sanctioned` 96 to 131 s.
+- **Rejected by the node:** a call whose proof has one flipped byte (a proxy in front of the proof server
+  flips it, so the wallet balances and signs around it and the proof is the only defect). The **node's
+  log** gives the reason, `Transaction malformed: failed to verify proof: Invalid proof` /
+  `Malformed(InvalidProof)`, because the client redacts the provider's message. The same call without
+  the flip is accepted (control), and the rejected call left no report on chain.
+- **A wrong verifier key cannot reach the node** through the standard client. Three layers refuse it first:
+  the artefact integrity check (the key must hash to the value compiled into the contract), the proof
+  server (it refuses to prove under a verifier key that does not match, HTTP 400), and the client (it
+  refuses to call a contract whose deployed key matches no local artefact: "No ZK artifact bundle matches
+  the deployed verifier key"). The script deploys such a contract and records these refusals. Rejection of a
+  wrong key by the node itself is therefore **not** shown; the corrupted-proof case exercises the same
+  node-side verifier.
+
+**What this supports:** the proofs our circuits and proof server produce are accepted by a Midnight node
+that verifies proofs and refuses a corrupted one, on the **local** ledger 9 network. **What it does not:**
+proof-system or circuit soundness (SR-1, SR-2 stand), behaviour on Preprod or Mainnet (CE-30), or any claim
+about the production deployment. The earlier `ledger:check` (in-memory ledger) still verifies nothing.
+
 ## What is still not verified
-- The generated proofs were **not verified.** The in-memory ledger does not check contract proofs (above) and the proof
-  server only checks witnesses and produces proofs. Real verification happens in a Midnight node: it needs a
-  node, an indexer and a funded wallet for fees. A local dev network or Preprod with a faucet test wallet are
-  the routes (CE-29); the ledger 8 dev node on the compiler host has no indexer and is too old for ledger 9.
+- **Public networks.** Nothing is deployed to Preprod, Preview or Mainnet (CE-30). The local network's node verifies
+  proofs, but its dev wallet and chain are throwaway.
+- Proof verification by anything other than that one node implementation, and the soundness of the proof system
+  itself, are trusted, not reviewed.
 - No transaction: nothing was deployed or submitted; wallet, DUST fees and indexer are untouched.
 - Public networks run ledger 9, and the ledger 9 build is proved as shown above. Neither build has been
   deployed or submitted to a network.

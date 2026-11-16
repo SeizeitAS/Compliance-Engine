@@ -3,3 +3,7 @@ managed/
 *.tgz
 .env
 .env.*
+integration/managed/
+integration/midnight-level-db/
+integration/.wallet-state/
+integration/.tmp-*
