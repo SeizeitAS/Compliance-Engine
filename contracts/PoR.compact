@@ -1,0 +1,53 @@
+// DRAFT from docs/compliance_engine_documentation.md. NOT production-ready; see README 'Known gaps'.
+pragma compact 0.5.1;
+
+import midnight.crypto.MerkleTree;
+import midnight.crypto.Hash;
+
+// Define the public commitment structure published on-chain
+export struct PoRCommitment {
+    liabilities_root: bytes32,
+    total_liabilities_nok: uint64,
+    verification_timestamp: uint64,
+    onchain_reserves_address_hash: bytes32
+}
+
+// Define the private witness structure processed locally by the CASP
+struct CustomerAccount {
+    account_id_hash: bytes32,
+    balance_nok: uint64,
+    salt: bytes32
+}
+
+ledger {
+    // The public history of verified Proof-of-Reserves entries
+    export verified_reports: Map<uint64, PoRCommitment>;
+}
+
+// ZK Circuit definition executed inside the prover's sandbox
+export circuit verify_exchange_solvency(
+    // Public Inputs
+    public_total_liabilities: uint64,
+    public_reserves_crypto_value_nok: uint64,
+    expected_root: bytes32,
+    timestamp: uint64,
+    
+    // Private Witness Inputs
+    private_accounts: Vector<CustomerAccount, 1024>
+) : bool {
+    
+    uint64 calculated_sum = 0;
+    
+    // Loop through the private witness array inside the circuit boundaries
+    for i in 0 .. 1024 {
+        calculated_sum += private_accounts[i].balance_nok;
+    }
+    
+    // Constraint 1: Prove that the hidden sum equals the publicly asserted liability
+    assert(calculated_sum == public_total_liabilities);
+    
+    // Constraint 2: Prove mathematical solvency (Reserves must be >= Liabilities)
+    assert(public_reserves_crypto_value_nok >= public_total_liabilities);
+    
+    return true;
+}
