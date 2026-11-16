@@ -25,6 +25,7 @@ npm run contracts:compile     # needs the Compact toolchain (`compact` on PATH)
 npm run crosscheck:por        # same for PoR (needs: npm install --no-save @midnight-ntwrk/compact-runtime@0.16.0)
 npm run runtime:check          # runs both contracts in the runtime: 22 accept/reject checks
 npm run prove                 # real proofs via a proof server (docs/proving.md); LEDGER=9 for the ledger 9 stack
+npm run ledger:check          # real txs applied to an in-memory ledger. Does NOT verify proofs (the ledger wasm skips that): never claim verification from it
 npm run crosscheck:circuit    # compares compiled circuit hashes with test/vectors/ (plain Node ESM)
 npm run vectors               # regenerate golden vectors from the TypeScript reference
 npm run time:report
@@ -46,6 +47,7 @@ npm run time:report
 | CE-9 EUDI intake | Off-circuit SD-JWT VC verifier done; mdoc, revocation, Digdir sandbox test, in-circuit version outstanding |
 | CE-6 PoR | DONE: sum tree, in-circuit attestation binding, reserve-package verifier (`src/por/reserves.ts`). Open: real-chain address derivation, balance reads, Merkle-anchored prices |
 | CE-20 ledger 9 | **DONE for build and proving** (toolchain 0.36.0, language 0.28.0, runtime 0.21.0, proof server 9.0.0): contracts compile unchanged, 22 runtime checks and both proofs pass. Open: proof verification, a deployment to Preprod (needs wallet and funds, ask the owner). The ledger 9 working copy and proof server 9.0.0 (127.0.0.1:6301) live on the compiler host, recipe in `docs/toolchain.md` |
+| CE-29 proof verification | OPEN: no proof has been verified by anything. Needs a real node (see `docs/proving.md`). A first `verify` script claimed otherwise and was withdrawn after controls showed the ledger library accepts tampered and unproven transactions |
 | CE-15 security review | IN PROGRESS: first internal pass in `docs/security-review.md`; High findings SR-1 (key not bound to identity, needs CE-9), SR-2 (reserves declared), SR-3 (single admin, CE-25) open. No production claim until closed and externally reviewed |
 | CE-21 to 27 | Reserve-side plan in `docs/reserve-side-plan.md`; decisions D1 to D4 taken. Next: CE-27 (custodial attested holdings) and the CE-21 spike. Today all funds are at NBX with no keys, so on-chain control proofs run on fixtures until self-custody exists |
 | CE-7, 8, 10 to 14, 16 to 19 | Backlog, see `docs/SCRUM.md` |

@@ -15,15 +15,25 @@ import { amlScenario, porScenario, proofDataOf, rt } from "./lib/harness.mjs";
 
 const server = process.env.PROOF_SERVER ?? "http://localhost:6300";
 const TIMEOUT = Number(process.env.PROOF_TIMEOUT_MS ?? 900000);
+// Retries only network-level failures (for example a keep-alive connection the server already closed);
+// /check and /prove are idempotent, and HTTP error statuses are never retried.
 const post = async (path, payload) => {
-  const res = await fetch(server + path, {
-    method: "POST",
-    headers: { "Content-Type": "application/octet-stream" },
-    body: new Uint8Array(payload),
-    signal: AbortSignal.timeout(TIMEOUT),
-  });
-  if (!res.ok) throw new Error(`${path}: HTTP ${res.status} ${res.statusText}: ${(await res.text()).slice(0, 300)}`);
-  return new Uint8Array(await res.arrayBuffer());
+  for (let attempt = 1; ; attempt++) {
+    let res;
+    try {
+      res = await fetch(server + path, {
+        method: "POST",
+        headers: { "Content-Type": "application/octet-stream" },
+        body: new Uint8Array(payload),
+        signal: AbortSignal.timeout(TIMEOUT),
+      });
+    } catch (e) {
+      if (attempt >= 3) throw e;
+      continue;
+    }
+    if (!res.ok) throw new Error(`${path}: HTTP ${res.status}: ${(await res.text()).slice(0, 200)}`);
+    return new Uint8Array(await res.arrayBuffer());
+  }
 };
 
 const keyMaterial = (contract, circuit) => {

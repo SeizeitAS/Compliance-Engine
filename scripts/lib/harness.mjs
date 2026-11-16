@@ -38,6 +38,7 @@ export const deploy = async (Contract, witnesses, privateState, ...ctorArgs) => 
   let ctx = makeCtx("constructor", COIN_PK, init.currentContractState, privateState);
   return {
     c,
+    initialState: init.currentContractState,
     get ctx() {
       return ctx;
     },

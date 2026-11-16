@@ -17,7 +17,8 @@
     "vectors:por": "node scripts/gen-por-vectors.ts > test/vectors/por-vectors.json",
     "crosscheck:por": "node scripts/crosscheck-por.mjs",
     "runtime:check": "node scripts/runtime-check.mjs",
-    "prove": "node scripts/prove.mjs"
+    "prove": "node scripts/prove.mjs",
+    "ledger:check": "node scripts/ledger-check.mjs"
   },
   "license": "Apache-2.0"
 }

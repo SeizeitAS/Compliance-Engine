@@ -43,8 +43,27 @@ The packages must match the ledger version of the compiler output and the proof 
 `docs/toolchain.md`, "Ledger target"). Installing both in one command matters: a later
 `npm install --no-save` removes packages added by an earlier one.
 
+## `npm run ledger:check` (proof server, in-memory ledger)
+Builds real deploy and call transactions for both proving circuits, has the proof server prove them, and
+applies them to a blank in-memory ledger state (`scripts/ledger-check.mjs`; `LEDGER=9
+PROOF_SERVER=http://localhost:6301` or ledger 8 with port 6300). It shows that:
+- the call transaction assembles from the runtime's proof data and the proof server proves it (5420 byte
+  proof on ledger 9, 4508 on ledger 8);
+- `wellFormed` and `apply` accept it, which replays the circuit's public transcript against the on-chain
+  state, and for PoR a replay of the same call is refused (the duplicate-period guard works at ledger level).
+
+**It does not verify the proofs, and neither does the ledger library it uses.** Controls on 2026-11-16, on
+both ledger 8 and 9, with contract proof checking switched on: a transaction with half its bytes zeroed was
+accepted, an unproven transaction was accepted, and a genuine proof under another circuit's verifier key
+was accepted. So the wasm `wellFormed` does not check contract proofs (the script prints this as a NOTE
+and will say so if a later version starts rejecting them). A first version of this check claimed "proof
+verified"; those claims were withdrawn once the controls were run.
+
 ## What is still not verified
-- The generated proofs were **not verified** (no verifier call, no ledger application).
+- The generated proofs were **not verified.** The in-memory ledger does not check contract proofs (above) and the proof
+  server only checks witnesses and produces proofs. Real verification happens in a Midnight node: it needs a
+  node, an indexer and a funded wallet for fees. A local dev network or Preprod with a faucet test wallet are
+  the routes (CE-29); the ledger 8 dev node on the compiler host has no indexer and is too old for ledger 9.
 - No transaction: nothing was deployed or submitted; wallet, DUST fees and indexer are untouched.
 - Public networks run ledger 9, and the ledger 9 build is proved as shown above. Neither build has been
   deployed or submitted to a network.
