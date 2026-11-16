@@ -1,100 +1,108 @@
 // AML sanctions gate: zero-knowledge NON-MEMBERSHIP proof against a sorted Merkle tree.
 //
-// STATUS: DRAFT. Not compiled against a real Compact toolchain. Syntax and standard-library
-// names must be checked against the current Compact release before use. The algorithm is
-// specified and tested in src/sanctions/indexedMerkleTree.ts; this circuit must stay in
-// lock-step with it (KEY_BITS = 128, depth = 20, same leaf/node domain separation).
+// STATUS: DRAFT v2 (CE-5). Rewritten in the syntax used by contracts that really compile
+// (flat file, `import CompactStandardLibrary`, `export pure circuit`, `witness`, `Counter`,
+// `Set`, `disclose`, `pad`, `x as Field as Bytes<32>`, `for (const i of 0..n)`), taken from
+// OpenZeppelin Compact Contracts 0.4.0 and the compiled krypto_aml contract in the Business 20
+// repository (compiler 0.31.0, language 0.23.0). NOT YET COMPILED by this project: run
+// `npm run contracts:compile`, then `npm run crosscheck:circuit` (see docs/toolchain.md).
 //
-// Scheme: the sanctions list is a sorted list of keys k_1 < ... < k_n. Leaf i commits to the
-// range (lo_i, hi_i) between two adjacent keys (sentinels 0 and 2^128). A subject key x is not
-// listed iff some committed leaf satisfies lo < x < hi. The subject key, range and Merkle path
-// stay private; only the list root, list version and a receipt commitment become public.
+// Algorithm and tests: src/sanctions/indexedMerkleTree.ts. Keep both in lock-step:
+//   KEY_BITS = 128, depth = 20, hash layout H(tag32 || a32 || b32), numbers little-endian.
+//
+// Scheme: sanctioned keys are sorted k_1 < ... < k_n. Leaf i commits to the gap (lo_i, hi_i)
+// between adjacent keys, with sentinels 0 and 2^128 - 1. A key x is NOT listed iff some committed
+// leaf has lo < x < hi. The subject key, range and Merkle path stay private witnesses.
+//
+// Points to verify on the real compiler (flagged, not assumed):
+//  - the lowest working `pragma language_version` (0.23.0 is the lowest version known to be used);
+//  - indexing a witness Vector with the unrolled loop variable `i`;
+//  - that persistentHash over Vector<3, Bytes<32>> equals SHA-256 of the 96 concatenated bytes,
+//    and that `Uint<128> as Field as Bytes<32>` is little-endian (scripts/crosscheck-*.mjs decide).
 
-pragma language_version >= 0.16;
+pragma language_version >= 0.23.0;
 
 import CompactStandardLibrary;
 
-export const TREE_DEPTH = 20;
+// ---- public state -----------------------------------------------------------------------------
+export ledger sanctions_root: Bytes<32>;
+export ledger list_version: Counter;
+export ledger admin_commitment: Bytes<32>;
+export ledger receipts: Set<Bytes<32>>; // opaque screening receipts, contain no personal data
 
-struct PathStep {
-  sibling: Bytes<32>;
-  node_is_right: Boolean; // true if the running node is the RIGHT child at this level
-}
+// ---- private inputs (supplied by the prover's local environment only) -------------------------
+witness wit_subject_key(): Uint<128>;   // first 128 bits of SHA-256(domain || normalised identifier)
+witness wit_range_lo(): Uint<128>;
+witness wit_range_hi(): Uint<128>;
+witness wit_path_siblings(): Vector<20, Bytes<32>>;
+witness wit_path_is_right(): Vector<20, Boolean>;  // true: the running node is the right child
+witness wit_receipt_nonce(): Bytes<32>;
+witness wit_admin_secret(): Bytes<32>;
 
-// Domain separation tags (must match the TypeScript reference implementation).
-const TAG_LEAF: Field = 0;
-const TAG_NODE: Field = 1;
-
-ledger sanctions_root: Bytes<32>;
-ledger list_version: Uint<64>;
-ledger admin: Bytes<32>;                 // hash of the admin public key
-ledger receipts: Set<Bytes<32>>;         // opaque screening receipts, contains no PII
-
-// Private inputs, supplied by the prover's local environment only.
-witness subject_key(): Uint<128>;        // first 128 bits of SHA-256(domain || normalised ID)
-witness range_lo(): Uint<128>;
-witness range_hi(): Uint<128>;           // 2^128 sentinel is represented by 2^128 - 1 + flag below
-witness range_hi_is_sentinel(): Boolean;
-witness merkle_path(): Vector<20, PathStep>;
-witness receipt_nonce(): Bytes<32>;
-witness admin_secret(): Bytes<32>;
-
-constructor(initial_root: Bytes<32>, admin_hash: Bytes<32>) {
+constructor(initial_root: Bytes<32>, admin: Bytes<32>) {
   sanctions_root = disclose(initial_root);
-  list_version = 1;
-  admin = disclose(admin_hash);
+  admin_commitment = disclose(admin);
+  list_version.increment(1);
 }
 
-circuit hash_leaf(lo: Uint<128>, hi: Uint<128>, hi_sentinel: Boolean): Bytes<32> {
-  return persistentHash<Vector<4, Field>>([TAG_LEAF, lo as Field, hi as Field, hi_sentinel ? 1 : 0]);
+// ---- hashing (pure, exported so they can be tested without a proof or a node) -----------------
+export pure circuit hash_leaf(lo: Uint<128>, hi: Uint<128>): Bytes<32> {
+  return persistentHash<Vector<3, Bytes<32>>>(
+    [pad(32, "ce.leaf.v1"), lo as Field as Bytes<32>, hi as Field as Bytes<32>]
+  );
 }
 
-circuit hash_node(l: Bytes<32>, r: Bytes<32>): Bytes<32> {
-  return persistentHash<Vector<3, Bytes<32>>>([TAG_NODE as Bytes<32>, l, r]);
+export pure circuit hash_node(left: Bytes<32>, right: Bytes<32>): Bytes<32> {
+  return persistentHash<Vector<3, Bytes<32>>>([pad(32, "ce.node.v1"), left, right]);
 }
 
-// Walks the path and returns the recomputed root.
-circuit compute_root(leaf: Bytes<32>, path: Vector<20, PathStep>): Bytes<32> {
+export pure circuit compute_root(
+  leaf: Bytes<32>,
+  siblings: Vector<20, Bytes<32>>,
+  is_right: Vector<20, Boolean>
+): Bytes<32> {
   let node = leaf;
-  for (const step of path) {
-    node = step.node_is_right ? hash_node(step.sibling, node) : hash_node(node, step.sibling);
+  for (const i of 0..20) {
+    node = is_right[i] ? hash_node(siblings[i], node) : hash_node(node, siblings[i]);
   }
   return node;
 }
 
+// ---- screening --------------------------------------------------------------------------------
 // Prove that the private subject key is NOT on the sanctions list committed to on-chain.
 // Records an opaque receipt so the screening is auditable without revealing the subject.
+//
+// CE-9 will replace `wit_subject_key` with a key derived inside the circuit from an issuer-signed
+// EUDI credential (see docs/eudi-intake.md). Until then the key is prover-asserted.
 export circuit prove_not_sanctioned(): Bytes<32> {
-  const x = subject_key();
-  const lo = range_lo();
-  const hi = range_hi();
-  const hi_sentinel = range_hi_is_sentinel();
+  const x = wit_subject_key();
+  const lo = wit_range_lo();
+  const hi = wit_range_hi();
 
-  // Constraint 1: x lies strictly inside the committed range. Strictness is what makes a
-  // listed key unprovable: listed keys are always an endpoint of some range, never interior.
+  // Strict inequalities: a listed key is always an endpoint of some range, never interior, so it
+  // can never satisfy both.
   assert(x > 0, "key must be non-zero");
   assert(lo < x, "key must be above range start");
-  assert(hi_sentinel || x < hi, "key must be below range end");
+  assert(x < hi, "key must be below range end");
 
-  // Constraint 2: the range leaf is part of the CURRENT on-chain sanctions tree.
-  const leaf = hash_leaf(lo, hi, hi_sentinel);
-  const root = compute_root(leaf, merkle_path());
+  // The range leaf must be part of the CURRENT on-chain sanctions tree.
+  const root = compute_root(hash_leaf(lo, hi), wit_path_siblings(), wit_path_is_right());
   assert(root == sanctions_root, "range is not in the committed sanctions list");
 
-  // Receipt binds the screening to the list version and a private nonce. It reveals neither
-  // the subject nor the range. The subject can later open it to an auditor by revealing the nonce.
-  const receipt = persistentHash<Vector<3, Bytes<32>>>([
-    receipt_nonce(),
-    (list_version as Field) as Bytes<32>,
-    (x as Field) as Bytes<32>
-  ]);
+  // The receipt binds the screening to the list version and a private nonce. The subject can
+  // later open it to an auditor by revealing the nonce.
+  const receipt = persistentHash<Vector<4, Bytes<32>>>(
+    [pad(32, "ce.receipt.v1"), wit_receipt_nonce(), list_version as Field as Bytes<32>, x as Field as Bytes<32>]
+  );
   receipts.insert(disclose(receipt));
   return disclose(receipt);
 }
 
-// Publish a new sanctions list root (for example after an official list update).
+// Publish a new sanctions list root, for example after an official list update.
+// Single-admin governance is a placeholder: production needs multi-party control (CE-15).
 export circuit update_sanctions_root(new_root: Bytes<32>): [] {
-  assert(persistentHash<Vector<1, Bytes<32>>>([admin_secret()]) == admin, "not authorised");
+  const caller = persistentHash<Vector<2, Bytes<32>>>([pad(32, "ce.admin.v1"), wit_admin_secret()]);
+  assert(caller == admin_commitment, "not authorised");
   sanctions_root = disclose(new_root);
-  list_version = (list_version + 1) as Uint<64>;
+  list_version.increment(1);
 }

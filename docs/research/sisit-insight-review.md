@@ -41,7 +41,7 @@
 | 10 | **Sanctions screening in token flows and agent commerce** | MCP/EUID, CIP-0113 | Same non-membership proof reused by buyers' agents ("not on a sanctions list"). | CE-2 |
 
 ## Corrections to the blueprint and docs
-1. **Compact version:** see item 8. Do not state "0.5.1" in docs until verified.
+1. **Compact version:** resolved in `docs/toolchain.md`: "0.5.1" is not a language version. The Business 20 repo's own compiler output reports language 0.23.0 (compiler 0.31.0).
 2. **Weighting window:** the blueprint says a rolling 30-day correlation; the assetprice article says weights are recalculated weekly. Align the documents with what the code does (assetprice `calculate_price_source_leadership.php`).
 3. **Anchoring status:** the blueprint calls the Midnight Merkle-anchored API a roadmap item; the article states plainly it is a plan with no code. Keep that wording.
 4. **Waters text:** the archive describes it as a House Democrats' proposal (Section 603(b)(20), monthly proof of reserves attested by a licensed auditor), not law. The blueprint already marks it a draft; keep it out of any "legal requirement" claim.

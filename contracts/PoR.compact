@@ -1,4 +1,6 @@
 // DRAFT from docs/compliance_engine_documentation.md. NOT production-ready; see README 'Known gaps'.
+// WARNING: pre-compiler syntax that will NOT compile (Rust-style ledger block, `fn`, etc.).
+// Excluded from scripts/compile-contracts.sh. To be rewritten in real Compact under CE-6.
 pragma compact 0.5.1;
 
 import midnight.crypto.MerkleTree;

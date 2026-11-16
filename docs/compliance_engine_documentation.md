@@ -1,6 +1,8 @@
 # Architectural Blueprint: Multi-Source Price Oracle & Zero-Knowledge Compliance Engine
 **A Production-Ready Compliance Framework for MiCA, AMLR, and Norwegian Money Laundering Regulations on Midnight & Cardano**
 
+> **Editor's note (2026-11-16):** this blueprint is the original draft. Known corrections: "Compact 0.5.1" is not a language version and the `import midnight.crypto.*` and Rust-style code blocks are not valid Compact (see `docs/toolchain.md`); the sanctions gate is now specified in `docs/non-membership-proof.md` and `contracts/AML_Gate.compact`; see `docs/research/sisit-insight-review.md` for other corrections.
+
 ---
 
 ## 1. Executive Summary & Purpose

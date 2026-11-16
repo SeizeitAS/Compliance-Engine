@@ -22,14 +22,14 @@ root, version and an opaque receipt are public.
 ## Files
 - `src/sanctions/indexedMerkleTree.ts`: reference implementation, used as test oracle.
 - `test/nonMembership.test.ts`: positive, negative, forged-proof, tamper and randomised tests.
-- `contracts/AML_Gate.compact`: the circuit. **Draft, not compiled.**
+- `contracts/AML_Gate.compact`: the circuit (real syntax, **not yet compiled**). `test/vectors/`: golden vectors the compiled circuit must reproduce.
 
 ## Security notes and limits
-- **Key truncation.** 128-bit keys give about 2^-128 chance of an accidental collision with a listed key, and finding an unlisted identity that collides with a listed one costs about 2^128 work. Acceptable for screening; revisit if an adversary can choose identifiers freely and a second-preimage of 2^128 is not enough for your risk model.
+- **Key truncation.** 128-bit keys (in the open interval (0, 2^128 - 1)) give about 2^-128 chance of an accidental collision with a listed key, and finding an unlisted identity that collides with a listed one costs about 2^128 work. Acceptable for screening; revisit if an adversary can choose identifiers freely and a second-preimage of 2^128 is not enough for your risk model.
 - **Normalisation is the weak point.** The proof shows an exact key is absent. Fuzzy matching (spelling variants, transliteration, aliases) is out of scope for the cryptography and must be handled by canonicalisation and by listing alias keys. Documented in CE-7.
 - **List governance.** `update_sanctions_root` is guarded by a single admin hash. Production needs multi-party control and publication of the source list hash.
 - **Freshness.** A receipt is bound to a list version; verifiers must reject receipts from versions older than their policy allows.
-- **Hash agreement.** The TypeScript SHA-256 hashing and the circuit's `persistentHash` are different functions today. The TS code is the algorithm oracle; a circuit-compatible hash must be added before cross-testing real proofs (CE-5).
+- **Hash agreement.** The TypeScript tree now uses the circuit's byte layout, `SHA-256(tag32 || a32 || b32)` with zero-padded ASCII tags and little-endian 32-byte numbers, and exports golden vectors. That Midnight's `persistentHash` equals SHA-256 over exactly these bytes, and that `Uint<128> as Field as Bytes<32>` is little-endian, are **assumptions** until `npm run crosscheck:circuit` passes on a compiler machine (`docs/toolchain.md`).
 - **Not legal advice.** A passing proof is evidence for a documented screening step, not a determination of compliance.
 
 ## Run the tests

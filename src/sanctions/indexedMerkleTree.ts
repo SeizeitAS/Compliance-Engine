@@ -9,13 +9,18 @@
  * the proof object contains the range so it can be tested and cross-checked
  * against the Compact circuit in contracts/AML_Gate.compact.
  *
- * Keys are the first KEY_BITS bits of SHA-256(domain || identifier). KEY_BITS is
- * kept in sync with the Uint<KEY_BITS> type in the circuit.
+ * Keys are the first KEY_BITS bits of SHA-256(domain || identifier), mapped into the open interval
+ * (0, KEY_SPACE). KEY_BITS is kept in sync with the Uint<KEY_BITS> type in the circuit.
+ *
+ * Node hashing mirrors the circuit: H(tag32 || a32 || b32) over 32-byte words, where tags are
+ * ASCII padded with zeros and numbers are 32-byte little-endian. Whether Midnight's persistentHash
+ * equals SHA-256 over exactly these bytes is an ASSUMPTION until scripts/crosscheck-hashes.mjs
+ * and scripts/crosscheck-circuit.mjs pass on a machine with the Midnight runtime and compiler.
  */
 import { createHash } from "node:crypto";
 
 export const KEY_BITS = 128;
-export const KEY_SPACE = 1n << BigInt(KEY_BITS); // exclusive upper sentinel
+export const KEY_SPACE = (1n << BigInt(KEY_BITS)) - 1n; // exclusive upper sentinel, fits Uint<KEY_BITS>
 export const DEFAULT_DEPTH = 20; // up to ~1M listed keys (2^20 - 1)
 
 export type Hash = string; // lowercase hex
@@ -41,21 +46,36 @@ const sha = (...parts: (string | Uint8Array)[]): Hash => {
   return h.digest("hex");
 };
 
-const fixedHex = (n: bigint): string => n.toString(16).padStart(KEY_BITS / 4 + 1, "0");
+/** ASCII text padded with zero bytes to 32 bytes (mirrors Compact `pad(32, "...")`). */
+const pad32 = (text: string): Buffer => {
+  const b = Buffer.alloc(32);
+  b.write(text, "ascii");
+  return b;
+};
+/** Number as 32-byte little-endian (mirrors `x as Field as Bytes<32>`; byte order is an assumption). */
+const num32 = (n: bigint): Buffer => {
+  const b = Buffer.alloc(32);
+  for (let i = 0, v = n; i < 32 && v > 0n; i++, v >>= 8n) b[i] = Number(v & 0xffn);
+  return b;
+};
+const hex32 = (h: Hash): Buffer => Buffer.from(h, "hex");
+
+export const TAG_LEAF = "ce.leaf.v1";
+export const TAG_NODE = "ce.node.v1";
+export const TAG_EMPTY = "ce.empty.v1";
 
 /** Domain-separated hashes: leaf, inner node and empty padding never collide. */
-export const hashLeaf = (lo: bigint, hi: bigint): Hash =>
-  sha("\x00", fixedHex(lo), fixedHex(hi));
-export const hashNode = (l: Hash, r: Hash): Hash => sha("\x01", l, r);
-const EMPTY_LEAF: Hash = sha("\x02");
+export const hashLeaf = (lo: bigint, hi: bigint): Hash => sha(pad32(TAG_LEAF), num32(lo), num32(hi));
+export const hashNode = (l: Hash, r: Hash): Hash => sha(pad32(TAG_NODE), hex32(l), hex32(r));
+const EMPTY_LEAF: Hash = sha(pad32(TAG_EMPTY));
 
 /** Derive the tree key for an identifier (e.g. a normalised national-ID string). */
 export function deriveKey(identifier: string, domain = "ce.sanctions.v1"): bigint {
   const digest = createHash("sha256").update(domain).update("\x00").update(identifier).digest();
   let k = 0n;
   for (let i = 0; i < KEY_BITS / 8; i++) k = (k << 8n) | BigInt(digest[i]);
-  // 0 is reserved as the lower sentinel; map it to 1 (probability 2^-128).
-  return k === 0n ? 1n : k;
+  // 0 and KEY_SPACE are the sentinels; map them to 1 (probability about 2^-127).
+  return k === 0n || k >= KEY_SPACE ? 1n : k;
 }
 
 export class SanctionsTree {
@@ -126,6 +146,10 @@ function emptyAt(level: number): Hash {
   }
   return emptyCache[level];
 }
+
+/** Per-level direction bits for a leaf index (true = the running node is the RIGHT child). */
+export const pathDirections = (index: number, depth: number): boolean[] =>
+  Array.from({ length: depth }, (_, d) => ((index >> d) & 1) === 1);
 
 /** Verify that `key` is not in the set committed to by `root`. Mirrors the circuit. */
 export function verifyNonMembership(
