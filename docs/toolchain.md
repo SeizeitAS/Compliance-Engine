@@ -1,7 +1,7 @@
 # Compact toolchain and how to verify the contracts (CE-5)
 
 ## Status
-**The contracts have not been compiled by this project yet.** The development container has no
+**`AML_Gate.compact` compiled and was cross-checked on 2026-11-16 (compiler 0.31.0, language 0.23.0, runtime 0.16.0). `PoR.compact` is still uncompiled (CE-6).** The development container has no
 Compact compiler (GitHub releases are blocked there) and installing third-party packages was not
 allowed, so everything below is prepared to run on a machine that has the compiler (the Preprod
 machine). Nothing in this document claims a compile has succeeded.
@@ -15,16 +15,17 @@ machine). Nothing in this document claims a compile has succeeded.
 | npm: `@midnight-ntwrk/compact-runtime` 0.21.0 (2026-11-03), `compact-js` 3.0.0, `midnight-js` 5.0.0 (2026-11-06); the scope is migrating to `@midnightntwrk` | npm registry, 2026-11-16 |
 | Mainnet moved to ledger 9 on 2026-11-06 (toolchain 0.36.0, indexer 4.4.101, Midnight.js 5.0.0); **Preprod stayed on ledger 8** | sisit.no "Midnight Ledger 9" article (secondary source) |
 
-**Correction:** the blueprint and some code comments say "Compact 0.5.1". That is not the
-language version: the same repo's compiler output reports language 0.23.0. Treat "0.5.1" as a
-mislabel (the Business 20 header comment carries it too) and pin real versions as below.
+**Correction:** the blueprint and some code comments say "Compact 0.5.1". That is the version of the
+`compact` CLI (toolchain manager), not the language version: the compiler is 0.31.0 and the language
+0.23.0. Treat "0.5.1" as a mislabel when used for the language (the Business 20 header comment carries it too) and pin real versions as below.
 
 ## Version to record (fill in on the compiler machine, then commit)
 ```
-compact --version            # compiler:   _____
-compact compile --version    # language:   _____
-node --version               # _____
-ledger / network target      # Preprod = ledger 8 per article, verify
+compact --version            # 0.5.1  (this is the Compact CLI / toolchain manager, NOT the language version)
+compact compile --version    # 0.31.0 (compiler)
+language version             # 0.23.0 (contract-info.json), runtime-version 0.16.0
+node --version               # v18.19.1 on the compiler host (crosscheck scripts are plain Node ESM)
+ledger / network target      # not verified; Preprod = ledger 8 per article
 ```
 The target must match the network you deploy to. A contract compiled for ledger 9 will not run on
 Preprod while Preprod is on ledger 8.
@@ -60,3 +61,16 @@ Send the exact compiler output for anything not listed; do not edit tests to mak
 `contracts/PoR.compact` still contains invalid, pre-compiler syntax (a Rust-style `ledger { }`
 block, `fn`, `Vector<CustomerAccount, 1024>` with an in-circuit loop). It is excluded from the
 compile script on purpose and is rewritten under CE-6.
+
+## Result of the first compile (2026-11-16)
+- `npm run contracts:compile` succeeded after one fix: `let` is a reserved word, so `compute_root` now
+  walks the path with `fold(merkle_step, leaf, siblings, is_right)` (a pure helper circuit
+  `merkle_step`). Two circuits compiled: `prove_not_sanctioned`, `update_sanctions_root`; prover and
+  verifier keys were generated under `managed/AML_Gate/`.
+- Needs `npm install --no-save @midnight-ntwrk/compact-runtime@0.16.0` (the version the compiler
+  reports) before `crosscheck:*` can import the generated contract.
+- `crosscheck:circuit`: PASS on `hash_leaf[0]`, `hash_leaf[1]`, `hash_node[0]`, `compute_root` (depth 20).
+- `crosscheck:hashes`: PASS, `persistentHash<Vector<3,Bytes<32>>>` equals SHA-256 of the concatenation.
+- Assumptions settled: SHA-256 layout (yes), little-endian numbers (yes), `pragma >= 0.23.0` (accepted).
+  Indexing `siblings[i]` in a loop was not tested; the fold replaced it. No tests were changed.
+- Not verified: proving, execution against a node, ledger 8 vs 9 target, PoR.compact.

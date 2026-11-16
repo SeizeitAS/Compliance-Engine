@@ -1,11 +1,11 @@
 // AML sanctions gate: zero-knowledge NON-MEMBERSHIP proof against a sorted Merkle tree.
 //
-// STATUS: DRAFT v2 (CE-5). Rewritten in the syntax used by contracts that really compile
+// STATUS: DRAFT v2, COMPILED 2026-11-16 (CE-5: compiler 0.31.0, language 0.23.0; hashes cross-checked). Rewritten in the syntax used by contracts that really compile
 // (flat file, `import CompactStandardLibrary`, `export pure circuit`, `witness`, `Counter`,
 // `Set`, `disclose`, `pad`, `x as Field as Bytes<32>`, `for (const i of 0..n)`), taken from
 // OpenZeppelin Compact Contracts 0.4.0 and the compiled krypto_aml contract in the Business 20
-// repository (compiler 0.31.0, language 0.23.0). NOT YET COMPILED by this project: run
-// `npm run contracts:compile`, then `npm run crosscheck:circuit` (see docs/toolchain.md).
+// repository (compiler 0.31.0, language 0.23.0). Re-run `npm run contracts:compile`
+// and `npm run crosscheck:circuit` after any change (see docs/toolchain.md). Proving and a node are untested.
 //
 // Algorithm and tests: src/sanctions/indexedMerkleTree.ts. Keep both in lock-step:
 //   KEY_BITS = 128, depth = 20, hash layout H(tag32 || a32 || b32), numbers little-endian.
@@ -14,8 +14,11 @@
 // between adjacent keys, with sentinels 0 and 2^128 - 1. A key x is NOT listed iff some committed
 // leaf has lo < x < hi. The subject key, range and Merkle path stay private witnesses.
 //
-// Points to verify on the real compiler (flagged, not assumed):
-//  - the lowest working `pragma language_version` (0.23.0 is the lowest version known to be used);
+// Verified on the real compiler: language_version >= 0.23.0 is accepted; persistentHash over
+// Vector<3, Bytes<32>> equals SHA-256 of the concatenation; `Uint<128> as Field as Bytes<32>` is
+// little-endian. `let` is reserved, so the Merkle path walk uses `fold` instead of a mutable loop.
+
+pragma language_version` (0.23.0 is the lowest version known to be used);
 //  - indexing a witness Vector with the unrolled loop variable `i`;
 //  - that persistentHash over Vector<3, Bytes<32>> equals SHA-256 of the 96 concatenated bytes,
 //    and that `Uint<128> as Field as Bytes<32>` is little-endian (scripts/crosscheck-*.mjs decide).
@@ -56,16 +59,17 @@ export pure circuit hash_node(left: Bytes<32>, right: Bytes<32>): Bytes<32> {
   return persistentHash<Vector<3, Bytes<32>>>([pad(32, "ce.node.v1"), left, right]);
 }
 
+// One Merkle step. Compact has no mutable locals (`let` is reserved), so the path walk is a fold.
+pure circuit merkle_step(node: Bytes<32>, sibling: Bytes<32>, is_right: Boolean): Bytes<32> {
+  return is_right ? hash_node(sibling, node) : hash_node(node, sibling);
+}
+
 export pure circuit compute_root(
   leaf: Bytes<32>,
   siblings: Vector<20, Bytes<32>>,
   is_right: Vector<20, Boolean>
 ): Bytes<32> {
-  let node = leaf;
-  for (const i of 0..20) {
-    node = is_right[i] ? hash_node(siblings[i], node) : hash_node(node, siblings[i]);
-  }
-  return node;
+  return fold(merkle_step, leaf, siblings, is_right);
 }
 
 // ---- screening --------------------------------------------------------------------------------

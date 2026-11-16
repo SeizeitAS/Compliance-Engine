@@ -15,7 +15,7 @@ Blueprint: `docs/compliance_engine_documentation.md` (original draft, has known 
 - **Never commit secrets, private keys, passwords, tokens, or internal network addresses and hostnames.**
   The local Compact compiler, validator and MariaDB live on the owner's LAN; their addresses stay out of git.
 - Do not open pull requests or push to other branches unless asked. Work branch: `ccr-b726918c-xbrbec`.
-- Honest status: say what is verified and what is assumed. Nothing in `contracts/` has been compiled yet.
+- Honest status: say what is verified and what is assumed. `AML_Gate.compact` compiled and cross-checked 2026-11-16; `PoR.compact` has not been compiled.
 - Track work in `docs/SCRUM.md` (CE-n items); log hours in `docs/time/timelog.csv` (`docs/TIME_TRACKING.md`). Do not invent hours.
 
 ## Commands
@@ -39,11 +39,14 @@ npm run time:report
 |---|---|
 | CE-1, CE-3, CE-4, CE-13 | DONE |
 | CE-2 non-membership proof | Reference + tests done; circuit uncompiled |
-| CE-5 toolchain | **Next action.** Prepared; must run on the compiler machine: `npm run contracts:compile`, then `npm run crosscheck:circuit`. Record `compact --version` and the language version in `docs/toolchain.md`. Fix real compiler errors; never edit tests to hide a mismatch |
+| CE-5 toolchain | **DONE for AML_Gate** (compiler 0.31.0, language 0.23.0, runtime 0.16.0; both crosschecks PASS). Original note: Prepared; must run on the compiler machine: `npm run contracts:compile`, then `npm run crosscheck:circuit`. Record `compact --version` and the language version in `docs/toolchain.md`. Fix real compiler errors; never edit tests to hide a mismatch |
 | CE-9 EUDI intake | Off-circuit SD-JWT VC verifier done; mdoc, revocation, Digdir sandbox test, in-circuit version outstanding |
 | CE-6, 7, 8, 10 to 19 | Backlog, see `docs/SCRUM.md` |
 
-## Assumptions that the first compile must settle
+## Assumptions the first compile settled (2026-11-16)
+All confirmed: 1, 2 and 4 hold; 3 was replaced by `fold` because `let` is reserved. See `docs/toolchain.md`.
+
+Original list:
 1. `persistentHash<Vector<3, Bytes<32>>>` equals SHA-256 over the 96 concatenated bytes.
 2. `Uint<128> as Field as Bytes<32>` is little-endian.
 3. `is_right[i]` / `siblings[i]` indexing inside `for (const i of 0..20)` compiles.
