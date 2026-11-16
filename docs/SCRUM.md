@@ -49,7 +49,13 @@ Language: English only (see `locales/README.md` for user-facing translations).
 | CE-17 | Reusable KYC attestation ("vetted by an authorised bank") for accountants and auditors | BACKLOG | Medium | 8 | Review item 5. |
 | CE-18 | Auditor access via viewing keys / discloseTo for Proof-of-Reserves attestation | BACKLOG | Low | 5 | Midnight plan for Q1 2027; spec unpublished. Design only until then. |
 | CE-19 | CIP-0113 interoperability: how a Midnight result reaches a Cardano rule validator | BACKLOG | Low | 5 | Research spike; open design question. |
-| CE-15 | Security review of the circuit (soundness, key truncation, list-update governance) | BACKLOG | High | 5 | Must precede any production claim. |
+| CE-15 | Security review of the circuit (soundness, key truncation, list-update governance) | IN PROGRESS | High | 5 | First internal pass done 2026-11-16 (`docs/security-review.md`): 3 High findings open (SR-1 key not bound to identity, SR-2 reserves declared, SR-3 single admin), 4 Medium. Done when the High findings are closed and an external reviewer has reviewed the circuits. Must precede any production claim. |
+| CE-21 | Reserve control proofs: CIP-30/COSE, EVM personal_sign, Midnight scheme, script addresses | BACKLOG | High | 8 | Plan: `docs/reserve-side-plan.md`. Needs owner decisions D1 to D4 first. |
+| CE-22 | Address derivation for Cardano, Ethereum and Midnight | BACKLOG | High | 5 | Plan: `docs/reserve-side-plan.md`. |
+| CE-23 | Balance snapshots from independent sources at a pinned height | BACKLOG | High | 8 | Plan: `docs/reserve-side-plan.md`. Shielded Midnight balances need a viewing key (CE-18). |
+| CE-24 | Merkle-anchored price inclusion proofs from Assetprice | BACKLOG | Medium | 5 | Plan: `docs/reserve-side-plan.md`; shares work with CE-8. |
+| CE-25 | Admin governance: rotation, k-of-n approval, timelock, source-list binding | BACKLOG | High | 8 | Design in `docs/security-review.md` (SR-3, SR-4). Changes both contracts; re-run all checks on ledger 9. |
+| CE-26 | Auditor tool `por:audit` and report | BACKLOG | Medium | 3 | Plan: `docs/reserve-side-plan.md`. |
 
 ## 5. Sprint log
 

@@ -89,7 +89,7 @@ test("a signature by a key that does not own the address is rejected", () => {
   const forged = { ...mine, control: { ...mine.control, signature: "00".repeat(64) } };
   assert.equal((verifyReservePackage(pkg([forged]), 50_000n, opts) as { reason: string }).reason, "BAD_CONTROL_PROOF");
   const malformed = { ...mine, control: { ...mine.control, signature: "zz" } };
-  assert.equal((verifyReservePackage(pkg([malformed]), 50_000n, opts) as { reason: string }).reason, "BAD_CONTROL_PROOF");
+  assert.equal((verifyReservePackage(pkg([malformed]), 50_000n, opts) as { reason: string }).reason, "MALFORMED_INPUT");
 });
 
 test("real chains fail closed until address derivation is injected", () => {
@@ -123,4 +123,22 @@ test("the attestation differs per period, root, reserves and package", () => {
   assert.notEqual(base, attestation(PERIOD, "cd".repeat(32), 5n, "11".repeat(32)));
   assert.notEqual(base, attestation(PERIOD, ROOT, 6n, "11".repeat(32)));
   assert.notEqual(base, attestation(PERIOD, ROOT, 5n, "22".repeat(32)));
+});
+
+test("malformed or out-of-range input is rejected before any hashing", () => {
+  const h = holding(1, ADA_1000);
+  const code = (p: ReservePackage, claimed = 50_000n) => (verifyReservePackage(p, claimed, opts) as { reason: string }).reason;
+  assert.equal(code({ ...pkg([h]), liabilitiesRoot: "AB".repeat(32) }), "MALFORMED_INPUT"); // upper case
+  assert.equal(code({ ...pkg([h]), liabilitiesRoot: "ab".repeat(31) }), "MALFORMED_INPUT"); // short
+  assert.equal(code({ ...pkg([h]), period: 1n << 64n }), "MALFORMED_INPUT");
+  assert.equal(code(pkg([h]), -1n), "MALFORMED_INPUT");
+  assert.equal(code(pkg([h]), 1n << 128n), "MALFORMED_INPUT");
+  assert.equal(code(pkg([{ ...h, control: { ...h.control, publicKey: "zz".repeat(32) } }])), "MALFORMED_INPUT");
+  assert.equal(code(pkg([{ ...h, amount: 1n << 128n }])), "MALFORMED_INPUT");
+});
+
+test("reserves that would not fit the circuit's Uint<128> are rejected", () => {
+  const huge = holding(1, (1n << 127n), { decimals: 0 });
+  const r = verifyReservePackage(pkg([huge], [price("ADA", 10_000_000_000n)]), 0n, opts);
+  assert.equal(r.valid ? "" : r.reason, "MALFORMED_INPUT");
 });

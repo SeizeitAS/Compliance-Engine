@@ -20,7 +20,7 @@ Blueprint: `docs/compliance_engine_documentation.md` (original draft, has known 
 
 ## Commands
 ```
-npm test                      # needs Node >= 22.18 (runs .ts directly). 48 tests, no dependencies
+npm test                      # needs Node >= 22.18 (runs .ts directly). 51 tests, no dependencies
 npm run contracts:compile     # needs the Compact toolchain (`compact` on PATH)
 npm run crosscheck:por        # same for PoR (needs: npm install --no-save @midnight-ntwrk/compact-runtime@0.16.0)
 npm run runtime:check          # runs both contracts in the runtime: 22 accept/reject checks
@@ -46,7 +46,9 @@ npm run time:report
 | CE-9 EUDI intake | Off-circuit SD-JWT VC verifier done; mdoc, revocation, Digdir sandbox test, in-circuit version outstanding |
 | CE-6 PoR | DONE: sum tree, in-circuit attestation binding, reserve-package verifier (`src/por/reserves.ts`). Open: real-chain address derivation, balance reads, Merkle-anchored prices |
 | CE-20 ledger 9 | **DONE for build and proving** (toolchain 0.36.0, language 0.28.0, runtime 0.21.0, proof server 9.0.0): contracts compile unchanged, 22 runtime checks and both proofs pass. Open: proof verification, a deployment to Preprod (needs wallet and funds, ask the owner). The ledger 9 working copy and proof server 9.0.0 (127.0.0.1:6301) live on the compiler host, recipe in `docs/toolchain.md` |
-| CE-7, 8, 10 to 19 | Backlog, see `docs/SCRUM.md` |
+| CE-15 security review | IN PROGRESS: first internal pass in `docs/security-review.md`; High findings SR-1 (key not bound to identity, needs CE-9), SR-2 (reserves declared), SR-3 (single admin, CE-25) open. No production claim until closed and externally reviewed |
+| CE-21 to 26 | Reserve-side plan in `docs/reserve-side-plan.md`; owner decisions D1 to D4 needed before CE-21 |
+| CE-7, 8, 10 to 14, 16 to 19 | Backlog, see `docs/SCRUM.md` |
 
 ## Assumptions the first compile settled (2026-11-16)
 All confirmed: 1, 2 and 4 hold; 3 was replaced by `fold` because `let` is reserved. See `docs/toolchain.md`.

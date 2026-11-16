@@ -57,7 +57,8 @@ export type Failure =
   | "BAD_CONTROL_PROOF"
   | "ADDRESS_DERIVATION_UNSUPPORTED"
   | "ADDRESS_KEY_MISMATCH"
-  | "RESERVES_MISMATCH";
+  | "RESERVES_MISMATCH"
+  | "MALFORMED_INPUT";
 export type Result =
   | { valid: true; reserves: bigint; packageHash: Hash; attestation: Hash }
   | { valid: false; reason: Failure; detail: string };
@@ -140,8 +141,28 @@ const defaultDerive = (chain: string, publicKeyHex: Hash): string | undefined =>
 
 const fail = (reason: Failure, detail: string): Result => ({ valid: false, reason, detail });
 
+const MAX_U64 = (1n << 64n) - 1n;
+const MAX_U128 = (1n << 128n) - 1n; // the circuit's Uint<128> reserve and sum type
+const isHex = (s: unknown, bytes: number): boolean => typeof s === "string" && s.length === bytes * 2 && /^[0-9a-f]+$/.test(s);
+
+/** Reject anything that would be silently truncated or reinterpreted by hashing (Buffer.from(hex) drops bad input). */
+function malformed(pkg: ReservePackage, claimed: bigint): string | undefined {
+  if (pkg.period < 0n || pkg.period > MAX_U64) return "period outside Uint<64>";
+  if (claimed < 0n || claimed > MAX_U128) return "claimed reserves outside Uint<128>";
+  if (!isHex(pkg.liabilitiesRoot, 32)) return "liabilitiesRoot must be 64 lowercase hex characters";
+  for (const h of pkg.holdings) {
+    if (!isHex(h.control.publicKey, 32)) return "control public key must be 64 lowercase hex characters";
+    if (!isHex(h.control.signature, 64)) return "control signature must be 128 lowercase hex characters";
+    if (h.amount > MAX_U128) return "amount outside Uint<128>";
+    if (h.snapshotHeight < 0n) return "negative snapshot height";
+  }
+  return undefined;
+}
+
 /** Verify a reserve package and recompute the figures the circuit stores. */
 export function verifyReservePackage(pkg: ReservePackage, claimedReserves: bigint, opts: Options): Result {
+  const bad = malformed(pkg, claimedReserves);
+  if (bad) return fail("MALFORMED_INPUT", bad);
   const maxAge = opts.maxPriceAgeSeconds ?? 3600n;
   const derive = opts.deriveAddress ?? defaultDerive;
 
@@ -176,6 +197,7 @@ export function verifyReservePackage(pkg: ReservePackage, claimedReserves: bigin
     total += holdingValue(h, price);
   }
 
+  if (total > MAX_U128) return fail("MALFORMED_INPUT", "computed reserves exceed Uint<128>");
   if (total !== claimedReserves) return fail("RESERVES_MISMATCH", `computed ${total}, claimed ${claimedReserves}`);
   const pkgHash = packageHash(pkg);
   return { valid: true, reserves: total, packageHash: pkgHash, attestation: attestation(pkg.period, pkg.liabilitiesRoot, total, pkgHash) };

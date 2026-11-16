@@ -63,6 +63,9 @@ Limits, stated plainly:
 - A control proof shows the key signed this report; it does not show that the funds are unencumbered or
   that the operator holds nothing against them (loans, pledges). That is an audit question.
 
+Security findings for this contract (SR-2, SR-6, SR-7, SR-8) are in `docs/security-review.md`; the plan
+to close the reserve-side gaps is `docs/reserve-side-plan.md`.
+
 ## Verification status (2026-11-16)
 - `npm run contracts:compile`: PoR compiles (one proving circuit, `publish_solvency_report`).
 - `npm run crosscheck:por`: PASS on `hash_leaf` x3, `hash_node`, `verify_inclusion` (depth 20).

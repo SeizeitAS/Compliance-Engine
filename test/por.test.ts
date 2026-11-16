@@ -67,6 +67,28 @@ test("root children hash up to the root with the summed total", () => {
   assert.deepEqual(hashNode(k.left, k.right), t.root);
 });
 
+test("an understated sub-total is detected only by customers beneath it (the trust model)", () => {
+  const depth = 3;
+  const a = accts(8);
+  const honest = new LiabilityTree(a, depth);
+  const { left, right } = honest.rootChildren();
+  // The operator declares a left sub-total that is too small and publishes the matching root.
+  const forgedLeft = { hash: left.hash, sum: left.sum - 50n };
+  const forgedRoot = hashNode(forgedLeft, right);
+  assert.equal(forgedRoot.sum, honest.root.sum - 50n);
+
+  // Customers 0..3 sit under the forged node: the sum they recompute does not match.
+  for (let i = 0; i < 4; i++) assert.ok(!verifyInclusion(forgedRoot, honest.prove(i), depth), `left customer ${i} must detect`);
+  // Customers 4..7 are handed the forged sibling and cannot tell: their proofs still verify.
+  for (let i = 4; i < 8; i++) {
+    const p = honest.prove(i);
+    const top = depth - 1;
+    const proof = { ...p, siblingHashes: [...p.siblingHashes], siblingSums: [...p.siblingSums] };
+    proof.siblingSums[top] = forgedLeft.sum;
+    assert.ok(verifyInclusion(forgedRoot, proof, depth), `right customer ${i} cannot detect`);
+  }
+});
+
 test("path length is enforced", () => {
   const t = new LiabilityTree(accts(3), 8);
   assert.throws(() => recomputeRoot(t.prove(0), 7), RangeError);
