@@ -102,6 +102,65 @@ wait for the Blockfrost decision.
 - **Acceptance:** both contracts deployed, circuits called, state read through Blockfrost's indexer, fees
   recorded; no secret in git, logs or chat.
 
+## Phase 2 preparation (2026-11-17)
+Facts re-checked against the Midnight documentation the same day: Preprod is ledger 9 since 2026-11-09, access
+is only through Blockfrost (the project token begins with `nightpreprod`, one token per network), the
+Midnight-hosted Preprod endpoints were retired on 2026-10-09, the faucet gives 5,000 tNIGHT per request and is
+rate limited, DUST registrations had to be redone after the upgrade, and a first wallet sync from genesis can
+take over an hour.
+
+What is ready in the repository: `integration/scripts/chain-check.ts` runs against Preprod with
+`MIDNIGHT_NETWORK=preprod` (positive path only: the stage with corrupted proofs refuses to run on a public
+chain), reads the wallet seed and the Blockfrost token from the git-ignored `.env.preprod`, never prints the
+token (it is redacted in output), waits for tNIGHT from the faucet, registers it for DUST and waits for DUST.
+`ADDRESS_ONLY=1` prints the public address and exits. **Nothing has been run against Preprod yet.**
+
+What is needed from the owner: **D7** (a throwaway test wallet may be created) and **D8** (a Blockfrost
+Midnight Preprod project and token, created by the owner). Assetprice has its own Preprod plan (AP14) with its
+own wallet and token; the two must not share a wallet.
+
+`.env.preprod` (never committed, mode 600), next to the repository root on the host that runs the script:
+```
+BLOCKFROST_PROJECT_ID=nightpreprod...
+MIDNIGHT_PREPROD_ALICE_SEED=<64 hex characters>
+MIDNIGHT_PROOF_SERVER=http://127.0.0.1:6301
+```
+
+## Resources on shaun3 and the later production machine (2026-11-17)
+shaun3 is a development and test host, not the production machine. The finished system is meant to run on a
+much more powerful machine that has not been bought yet; sizing for it is not decided here.
+
+**No PostgreSQL is needed for this plan.** shaun3 has none, and that is not an obstacle:
+- The local network uses `indexer-standalone` (`infra/ce-local/compose.yml`), which runs without a separate
+  database and already runs on shaun3.
+- Preprod uses the node and the indexer hosted by Blockfrost. Only the wallet client and a local proof server
+  run on our side; the wallet state is kept in files and LevelDB.
+- Assetprice and Business 20 use MariaDB on another host.
+PostgreSQL would be needed for a self-run Cardano-connected validator (Cardano db-sync) and possibly for a
+self-hosted indexer in a non-standalone setup (**not checked**). Neither is part of Compliance Engine's plan.
+
+**What is tight is memory and CPU.** Measured on shaun3 (Intel i3-7100, 4 threads, 11.6 GB RAM) on 2026-11-17:
+
+| | |
+|---|---|
+| In use / available | 7.1 GB / 4.6 GB |
+| `proof-server-l9` | 2.6 GB |
+| `midnight-dev-node` (older) | 1.6 GB |
+| `ce-local-node` | 0.9 GB |
+| `proof-server` (older, ledger 8) | 0.9 GB |
+| `ce-local-indexer` | 0.3 GB |
+
+Risks for the Preprod run: the sanctions proof takes about two minutes on four threads and the proof server
+holds a lot of memory while proving; the first wallet sync can take over an hour; Assetprice publishing at the
+same time competes for CPU and memory. Mitigations, in order: run one thing at a time and not while Assetprice
+publishes; stop the two older containers (about 2.5 GB), only with the owner's agreement since they are
+the owner's; run the Preprod check at a quiet time. If it still does not fit, wait for the production machine.
+
+**For the production machine, the drivers are:** proving (CPU cores and memory for the proof server, which
+sees all private inputs and so stays under our control), any self-hosted node and indexer, and the database
+choices that follow. Collect real numbers from the runs above before buying: proof times, peak memory per
+circuit, and wallet sync time.
+
 ## Effort and order
 Phase 0 (1) + Phase 1 (8) + Phase 2 (5) = 14 points, roughly one sprint. Phase 1 can start as soon as D5 and D6
 are answered; Phase 2 waits for D7 and D8.

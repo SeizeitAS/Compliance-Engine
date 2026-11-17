@@ -46,6 +46,16 @@ example template in github.com/midnightntwrk/midnight-examples (Apache-2.0), wit
 preprocessor markers resolved to the monorepo variant, ports changed, and the contract-specific parts
 removed. Their license headers are kept. `scripts/chain-check.ts` is ours.
 
+## Preprod (CE-30, prepared, not yet run)
+Positive path only. Needs a throwaway test wallet and a Blockfrost Preprod token in the git-ignored
+`.env.preprod` at the repository root (variables in `docs/network-plan.md`). Never put a seed or a token in chat,
+logs or git.
+```
+ADDRESS_ONLY=1 MIDNIGHT_NETWORK=preprod npm run chain:check   # prints the public address for the faucet, exits
+MIDNIGHT_NETWORK=preprod npm run chain:check                  # syncs (first time over an hour), waits for tNIGHT and DUST, deploys and calls
+```
+The stage with corrupted proofs refuses to run on a public chain. The Blockfrost token is redacted in output.
+
 ## Shared with Assetprice (from 2026-11-17)
 The local stack on shaun3 is also used by the Assetprice publisher. It links to this workspace's
 `node_modules` and uses the same genesis wallet (ALICE). So: do not change or delete the installed packages

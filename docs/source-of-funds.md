@@ -58,6 +58,15 @@ only as good as the check of each leaf. An auditor would have to recompute the l
 need an in-circuit attestation check, which is expensive.
 
 ## The concrete example: the owner's own books (Business 20)
+
+**Scope and integration (decided by the owner, 2026-11-17):**
+1. **The example is limited to 2026.** That is where the accounting data and the vouchers (billag) are most
+   exact. In 2025 the owner used a different accounting system, so 2025 is out of scope.
+2. **The engine is used from the user's own accounting system.** For the owner that is Business 20; other
+   users will use theirs. So the ledger records (see the data model) are produced by an export or connector
+   from the accounting system, and the proof is made from that export, not from a separate data entry. The
+   export format is therefore a requirement of its own: one connector per accounting system, Business 20
+   first. Nothing is built for this yet.
 All crypto transactions are booked in Business 20 (Kryptoforvaltning). The same four questions apply to each
 category. **None of the answers is known from this repository**: they depend on the data in the accounting
 system, which has not been read for this note.

@@ -5,6 +5,7 @@
 // used by scripts/ledger-check.mjs does not (docs/proving.md).
 //
 //   cd integration && npm run chain:check           (stages: CHECK_STAGES=por,aml,neg, default all)
+//   MIDNIGHT_NETWORK=preprod npm run chain:check    (positive path only; needs .env.preprod, see docs/network-plan.md)
 //
 // Negative tests (stage "neg"), on the PoR contract because proving it is fast:
 //  - corrupted proof: a small proxy in front of the proof server flips one byte of the proof it
@@ -30,7 +31,7 @@ import { CompiledContract } from '@midnight-ntwrk/midnight-js-protocol/v9/compac
 import type { EnvironmentConfiguration } from '@midnight-ntwrk/testkit-js';
 import { attestation as expectedAttestation } from '../../src/por/reserves.ts';
 import { getConfig } from '../src/config.js';
-import { MidnightWalletProvider, syncWallet, waitForDust } from '../src/wallet.js';
+import { MidnightWalletProvider, resolveWallet, syncWallet, waitForDust, waitForNightThenDust } from '../src/wallet.js';
 import { buildProviders, ledgerState } from '../src/providers.js';
 
 // @ts-expect-error WebSocket global assignment for apollo (GraphQL subscriptions in Node)
@@ -39,7 +40,25 @@ globalThis.WebSocket = WebSocket;
 const logger = pino({ level: process.env['LOG_LEVEL'] ?? 'warn', transport: { target: 'pino-pretty' } });
 const root = resolve(fileURLToPath(new URL('.', import.meta.url)), '..');
 const managed = process.env['CE_MANAGED_DIR'] ?? resolve(root, 'managed');
-const stages = (process.env['CHECK_STAGES'] ?? 'por,aml,neg').split(',');
+// Network selection. Default is the local ce-local stack. For a remote network (preprod, preview) the wallet
+// seed and the Blockfrost token come from the git-ignored repo-root .env.<network>; nothing from it is printed.
+const network = process.env['MIDNIGHT_NETWORK'] ?? 'local';
+const remote = network !== 'local';
+if (remote) {
+  try {
+    for (const line of readFileSync(resolve(root, '..', `.env.${network}`), 'utf8').split('\n')) {
+      const m = line.match(/^\s*([A-Za-z_][A-Za-z0-9_]*)\s*=\s*(.*?)\s*$/);
+      if (m && !line.trim().startsWith('#') && process.env[m[1]!] === undefined) process.env[m[1]!] = m[2]!.replace(/^(['"])(.*)\1$/, '$2');
+    }
+  } catch {
+    /* no file: the variables may be exported in the shell instead */
+  }
+}
+const redact = (s: string) => s.replace(/project_id=[^&\s"']+/g, 'project_id=***');
+const stages = (process.env['CHECK_STAGES'] ?? (remote ? 'por,aml' : 'por,aml,neg')).split(',');
+if (remote && stages.includes('neg')) {
+  throw new Error('The negative stage (corrupted proofs) is only for the local network, never for a public chain.');
+}
 const ALICE_SEED = '0000000000000000000000000000000000000000000000000000000000000001'; // local dev genesis wallet
 
 const vectors = (name: string) => JSON.parse(readFileSync(resolve(root, '../test/vectors', name), 'utf8'));
@@ -57,7 +76,7 @@ const ok = (name: string, cond: boolean, detail = '') => {
 const note = (text: string) => console.log(`NOTE  ${text}`);
 const errText = (e: unknown): string => {
   const parts: string[] = [];
-  for (let x: any = e, i = 0; x && i < 4; x = x.cause, i++) parts.push(String(x?.message ?? x).split('\n')[0]!.slice(0, 900));
+  for (let x: any = e, i = 0; x && i < 4; x = x.cause, i++) parts.push(redact(String(x?.message ?? x).split('\n')[0]!.slice(0, 900)));
   return parts.join(' | ');
 };
 
@@ -117,8 +136,15 @@ const cfg = { ...config, proofServer: `http://127.0.0.1:${proxyPort}` };
 // ---- wallet ----------------------------------------------------------------------------------------
 setNetworkId(config.networkId);
 const envConfig = { walletNetworkId: config.networkId, ...cfg } as EnvironmentConfiguration;
-const wallet = await MidnightWalletProvider.build(logger, envConfig, { kind: 'seed', value: ALICE_SEED });
+const secret = remote ? resolveWallet(network, 'ALICE').secret : ({ kind: 'seed', value: ALICE_SEED } as const);
+const wallet = await MidnightWalletProvider.build(logger, envConfig, secret);
 await wallet.start();
+if (remote) console.log(`unshielded address (public, for the faucet): ${String(wallet.unshieldedKeystore.getBech32Address())}`);
+if (process.env['ADDRESS_ONLY'] === '1') {
+  await wallet.stop().catch(() => undefined);
+  proxy.close();
+  process.exit(0);
+}
 const cleanup = async () => {
   await wallet.stop().catch(() => undefined);
   proxy.close();
@@ -126,9 +152,11 @@ const cleanup = async () => {
 process.on('SIGINT', () => void cleanup().then(() => process.exit(130)));
 
 try {
-  console.log(`network ${config.networkId}, node ${config.node}, proof server ${config.proofServer} (via proxy :${proxyPort})`);
-  await syncWallet(logger, wallet.wallet, 600_000);
-  await waitForDust(logger, wallet.wallet, Number(process.env['DUST_COINS'] ?? 2), 600_000, config.indexer);
+  console.log(`network ${config.networkId}, node ${redact(config.node)}, proof server ${config.proofServer} (via proxy :${proxyPort})`);
+  // A first sync of a public network can take over an hour; the local one takes seconds.
+  await syncWallet(logger, wallet.wallet, remote ? 7_200_000 : 600_000);
+  if (remote) await waitForNightThenDust(logger, wallet.wallet, wallet.unshieldedKeystore, envConfig, config.faucet);
+  else await waitForDust(logger, wallet.wallet, Number(process.env['DUST_COINS'] ?? 2), 600_000, config.indexer);
   console.log('wallet synced, DUST available');
 
   const load = async (name: string) => import(pathToFileURL(join(managed, name, 'contract', 'index.js')).href);
