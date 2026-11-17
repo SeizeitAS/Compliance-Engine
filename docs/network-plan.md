@@ -118,8 +118,11 @@ are answered; Phase 2 waits for D7 and D8.
   the circuits are sound for compliance (SR-1, SR-2 still stand) or that we are ready for mainnet.
 
 ## Cleaning up
-Local stack: `docker compose down` (and remove its volumes) on shaun3, delete the cloned repository and the
-Node 22 install if one was added. Preprod: delete `.env.preprod`, nothing else persists.
+**The local stack on shaun3 is shared with Assetprice since 2026-11-17** (see "Shared resources" below). Do not
+run `docker compose down`, remove the volumes or the `proof-server-l9` container without agreeing it with the
+Assetprice side first: that would remove its anchored test roots and break its publisher.
+When both sides agree: `docker compose down` (and remove its volumes) on shaun3, delete the cloned repository
+and the Node 22 install if one was added. Preprod: delete `.env.preprod`, nothing else persists.
 
 ## Phase 1 results and deviations from the plan (2026-11-16)
 - **The planned repository was archived.** `midnight-local-dev` pins ledger 8 images (node 1.0.0, indexer 4.3.3,
@@ -140,7 +143,18 @@ Node 22 install if one was added. Preprod: delete `.env.preprod`, nothing else p
 - **D9 (maintenance authority):** test deploys used the client's default (a freshly sampled signing key); the
   real decision stays with CE-25.
 - **Left running on shaun3:** the ce-local node and indexer containers (light) and `proof-server-l9`.
-  Stop with `docker compose -f infra/ce-local/compose.yml down`.
+  They are now also used by Assetprice: do not stop them without agreeing it (see below).
+
+## Shared resources on shaun3 (from 2026-11-17)
+Assetprice (separate repository, own backlog and time log) anchors its price roots on the same local network.
+- Its publisher (`~/assetprice-anchor`) uses this repository's `~/ce-l9/integration/node_modules` through a
+  symlink, and copies of `integration/src/{wallet,providers,config}.ts`. Do not change or delete those
+  packages or files without telling the Assetprice side.
+- Both use the genesis wallet ALICE on ce-local. Never run `chain:check` while Assetprice is publishing
+  (UTXO conflict). Check with the Assetprice side first.
+- Do not touch the `ce-local-*` containers or `proof-server-l9` without agreeing it.
+- The Assetprice contract (`PriceAnchor`) is deployed on ce-local only, not on Preprod or mainnet.
+  Anything we say about anchored prices must say that.
 
 ## Sources (retrieved 2026-11-16)
 - Networks and environments: https://docs.midnight.network/guides/networks-and-environments

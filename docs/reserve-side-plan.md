@@ -119,8 +119,14 @@ and asset at the snapshot height, plus the evidence that was read.
 ### CE-24: price anchoring (5 points, shares work with CE-8)
 Replace the flat price hash by inclusion proofs against an Assetprice Merkle root anchored on Midnight
 (blueprint section 3.3), with the oracle's own timestamp and source set. Prices outside the freshness
-window or without a valid inclusion proof fail. Blocked on the Assetprice anchoring API (CE-8 and
-AP12/AP14 in that repository).
+window or without a valid inclusion proof fail. The Assetprice API exists since 2026-11-17 (hourly blended
+prices, Merkle windows, `anchor-v1`). Verification steps: recompute the leaf with `priceLeaf`, walk the path
+with `SHA-256(pad32("assetprice.node.v1") || left || right)` (an odd node moves up unchanged), compare with the
+window root, then compare with the root stored in the PriceAnchor contract. Until that last step succeeds the
+root is a database promise, not independently proven, and the result says `anchored: false`. The anchor is on
+the local ce-local network only; Preprod publishing is AP14 in the Assetprice repository.
+Freshness: the price for hour H is available from about H+1h07 with a timestamp near H+59m, so with
+`maxPriceAgeSeconds = 3600` the snapshot time must fall between H+1h07 and H+1h59.
 
 ### CE-26: auditor tool and report (3 points)
 One command `npm run por:audit -- <report.json>` that runs everything above and prints a plain
