@@ -9,3 +9,9 @@ date,person,sprint,task_id,category,hours,note
 2026-11-17,setereng,S1,CE-14,ops,0.5,-ai: CI workflow runs npm test on Node 22.18
 2026-11-17,setereng,S1,CE-33,ops,1.75,-ai: GitHub setup; issue and PR templates; eight issues; social image; article fixes
 2026-11-17,setereng,S1,CE-31,documentation,0.75,-ai: source-of-funds design note; bank question sheet; NDI idea (CE-32)
+2026-11-16,setereng,S1,CE-20,development,0.5,-ai: build run and prove both contracts on ledger 9
+2026-11-16,setereng,S1,CE-15,review,0.5,-ai: first internal security pass; harden reserve verifier
+2026-11-16,setereng,S1,CE-27,documentation,0.25,-ai: reserve-side plan and owner decisions D1-D4
+2026-11-16,setereng,S1,CE-29,development,0.75,-ai: resource check; phase 1 on shaun3; verify proofs on a real node; ledger:check
+2026-11-16,setereng,S1,CE-30,documentation,0.25,-ai: plan for node verification and Preprod smoke test
+2026-11-16,setereng,S1,CE-33,documentation,0.5,-ai: Apache-2.0 license; two articles; review of the owner article
