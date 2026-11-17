@@ -8,6 +8,7 @@
 | `security-review.md` | First internal security pass (CE-15): findings, severities, what was and was not reviewed |
 | `reserve-side-plan.md` | Plan for the reserve side of PoR: control proof schemes, address derivation, balance sources, prices |
 | `../integration/README.md` | The circuits against a real node: how to run `chain:check`, safety, provenance of the derived files |
+| `source-of-funds.md` | Design note (CE-31): proving that transactions above a threshold come from an approved source, and what that cannot prove |
 | `network-plan.md` | Plan to verify the proofs in a real node (local network) and run a Preprod smoke test: facts, decisions, steps, risks |
 | `proving.md` | Runtime execution and real proving of the circuits, with results and limits |
 | `eudi-intake.md` | EUDI credential intake (SD-JWT VC), scope and gaps |
