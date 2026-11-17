@@ -4,3 +4,8 @@ date,person,sprint,task_id,category,hours,note
 2026-11-16,setereng,S1,CE-5,development,1.5,-ai: compile AML_Gate on Compact 0.31.0; fix reserved let with fold; crosschecks pass; push
 2026-11-16,setereng,S1,CE-6,development,0.25,-ai: rewrite PoR as Merkle sum tree; fix AML_Gate header comment
 2026-11-16,setereng,S1,CE-6,development,0.25,-ai: runtime check; proving on proof server 8.1.0; reserve package verifier; ledger 9 finding
+2026-11-17,setereng,S1,CE-8,ops,0.25,-ai: Assetprice instructions; shared shaun3 resources documented
+2026-11-17,setereng,S1,CE-24,development,0.75,-ai: price inclusion proof verifier with tests; docs
+2026-11-17,setereng,S1,CE-14,ops,0.5,-ai: CI workflow runs npm test on Node 22.18
+2026-11-17,setereng,S1,CE-33,ops,1.75,-ai: GitHub setup; issue and PR templates; eight issues; social image; article fixes
+2026-11-17,setereng,S1,CE-31,documentation,0.75,-ai: source-of-funds design note; bank question sheet; NDI idea (CE-32)

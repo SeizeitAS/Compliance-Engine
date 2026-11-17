@@ -62,6 +62,7 @@ Language: English only (see `locales/README.md` for user-facing translations).
 | CE-30 | Preprod smoke test: deploy and call both contracts with a throwaway test wallet and faucet tokens | BACKLOG | Medium | 5 | Plan: `docs/network-plan.md` (Phase 2). Needs D7 (throwaway wallet) and D8 (Blockfrost account and token, created by the owner). No company funds. |
 | CE-31 | Source-of-funds proof: transactions at or above a threshold covered by an approved-source attestation or an auditor approval | BACKLOG | Medium | 8 | Design note: `docs/source-of-funds.md` (nothing implemented). First: confirm the threshold and the definition of approved source with the banks, and mark one period of the owner books as covered or not covered. Then a reference verifier. Depends on CE-24, relates to CE-16 and CE-17. |
 | CE-32 | NDI reward statements: per-customer staking-reward vouchers (ADA, NIGHT) with Assetprice price proofs | BACKLOG | Medium | 5 | Idea in `docs/source-of-funds.md`. Needs: statement format and signing, chain cross-check for each token, anchored prices (AP14 in Assetprice). Depends on CE-24 and CE-31. |
+| CE-33 | Publication and community: articles, license, GitHub setup | IN PROGRESS | Medium | 3 | Apache-2.0 license, two sisit.no articles (published by the owner), SECURITY.md, issue and pull request templates, eight starter issues, social preview image. Open: Discussions settings, Dependabot for `integration/` if wanted. |
 
 ## 5. Sprint log
 
