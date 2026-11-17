@@ -14,7 +14,7 @@ Blueprint: `docs/compliance_engine_documentation.md` (original draft, has known 
   source, `nb.json` the first translation). Never put display strings in library code.
 - **Never commit secrets, private keys, passwords, tokens, or internal network addresses and hostnames.**
   The local Compact compiler, validator and MariaDB live on the owner's LAN; their addresses stay out of git.
-- Do not open pull requests or push to other branches unless asked. Work branch: `ccr-b726918c-xbrbec`.
+- Do not open pull requests or push to other branches unless asked. Work branch: `main`.
 - Honest status: say what is verified and what is assumed. `AML_Gate.compact` compiled and cross-checked 2026-11-16; `PoR.compact` (rewritten as a Merkle sum tree, CE-6) compiled and cross-checked the same day.
 - Track work in `docs/SCRUM.md` (CE-n items); log hours in `docs/time/timelog.csv` (`docs/TIME_TRACKING.md`). Do not invent hours.
 
