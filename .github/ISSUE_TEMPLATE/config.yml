@@ -1,0 +1,8 @@
+blank_issues_enabled: true
+contact_links:
+  - name: Security finding (private)
+    url: https://github.com/SeizeitAS/Compliance-Engine/security/advisories/new
+    about: Report vulnerabilities privately. Do not post details in a public issue. See SECURITY.md.
+  - name: Known security findings
+    url: https://github.com/SeizeitAS/Compliance-Engine/blob/HEAD/docs/security-review.md
+    about: Check whether a finding is already known and tracked before reporting.
