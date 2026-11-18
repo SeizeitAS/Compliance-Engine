@@ -13,3 +13,11 @@ All source code, comments, identifiers and documentation in this repository are 
   Missing translations are allowed (they fall back to English) but are reported.
 - Legal terms with a fixed official translation (for example from MiCA or Hvitvaskingsloven)
   should use the official wording and cite the source in the pull request.
+
+## Available languages
+
+| Tag | Language |
+| --- | --- |
+| `en` | English (source) |
+| `nb` | Norwegian Bokmal |
+| `tr` | Turkish |
