@@ -19,3 +19,5 @@ date,person,sprint,task_id,category,hours,note
 2026-11-19,setereng,S1,CE-30,ops,0.5,-ai: Preprod run on the test host; sync; DUST; deploy and call PoR and AML_Gate
 2026-11-19,setereng,S1,CE-30,development,0.5,-ai: wallet snapshot every 10 minutes during sync; README
 2026-11-19,setereng,S1,CE-30,documentation,0.5,-ai: Preprod results and lessons in network-plan and SCRUM; full address in chain-check
+2026-11-19,setereng,S1,CE-27,development,0.5,-ai: custodial attested holdings; policy hash; reconciliation in reserves.ts; 12 new tests
+2026-11-19,setereng,S1,CE-27,documentation,0.25,-ai: proof-of-reserves; reserve-side-plan; SCRUM updated
