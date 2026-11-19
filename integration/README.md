@@ -46,7 +46,7 @@ example template in github.com/midnightntwrk/midnight-examples (Apache-2.0), wit
 preprocessor markers resolved to the monorepo variant, ports changed, and the contract-specific parts
 removed. Their license headers are kept. `scripts/chain-check.ts` is ours.
 
-## Preprod (CE-30, prepared, not yet run)
+## Preprod (CE-30, run on 2026-11-19)
 Positive path only. Needs a throwaway test wallet and a Blockfrost Preprod token in the git-ignored
 `.env.preprod` at the repository root (variables in `docs/network-plan.md`). Never put a seed or a token in chat,
 logs or git.
@@ -60,8 +60,8 @@ The stage with corrupted proofs refuses to run on a public chain. The Blockfrost
 host). The sync saves a snapshot to the git-ignored `integration/.wallet-state/` (mode 600, one file per network and
 seed) every 10 minutes and once more when the sync is complete. A new run restores the last snapshot and syncs only
 the gap; if restoring fails it logs a warning and syncs from genesis. Before 2026-11-19 the state was saved only
-after a complete sync, so a run that stopped half-way lost all progress. The snapshot is not tested yet against
-a restore from a partial sync. `MIDNIGHT_WALLET_STATE=off` turns saving off. The directory holds wallet state
+after a complete sync, so a run that stopped half-way lost all progress. The snapshot was not available during the first
+Preprod run (2026-11-19) and is not tested yet against a restore from a partial sync. `MIDNIGHT_WALLET_STATE=off` turns saving off. The directory holds wallet state
 derived from the seed: treat it like the seed and never commit or share it.
 
 ## Shared with Assetprice (from 2026-11-17)

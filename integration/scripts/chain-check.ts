@@ -200,6 +200,7 @@ try {
     const deployed = await deployContract(porProviders, { compiledContract: porCompiled, privateStateId: 'por-1', initialPrivateState: porState, args: porArgs } as any);
     porAddress = (deployed as any).deployTxData.public.contractAddress;
     ok(`PoR: deployed at ${porAddress.slice(0, 12)}... (${((Date.now() - t0) / 1000).toFixed(0)} s)`, porAddress.length > 0);
+    console.log(`PoR contract address (public): ${porAddress}`);
     const l0 = await stateOf(porProviders, porAddress, por.ledger);
     ok('PoR: indexer shows the initial state (no reports, admin commitment stored)', l0.reports.isEmpty() && hex(l0.admin_commitment) === hex(porArgs[0]!));
 
@@ -236,6 +237,7 @@ try {
     const deployed = await deployContract(providers, { compiledContract: compiled, privateStateId: 'aml-1', initialPrivateState: amlState, args } as any);
     const address = (deployed as any).deployTxData.public.contractAddress;
     ok(`AML: deployed at ${address.slice(0, 12)}...`, address.length > 0);
+    console.log(`AML contract address (public): ${address}`);
     const l0 = await stateOf(providers, address, aml.ledger);
     ok('AML: indexer shows the initial root and list version 1', hex(l0.sanctions_root) === m.root && l0.list_version === 1n);
 

@@ -126,6 +126,37 @@ MIDNIGHT_PREPROD_ALICE_SEED=<64 hex characters>
 MIDNIGHT_PROOF_SERVER=http://127.0.0.1:6301
 ```
 
+## Phase 2 results (2026-11-19, times UTC)
+`MIDNIGHT_NETWORK=preprod npm run chain:check` ran on shaun3 against Preprod (ledger 9, through Blockfrost) with a
+throwaway wallet, the local `proof-server-l9` on port 6301 and tNIGHT from the faucet. **All positive checks
+passed** (exit code 0, "All chain checks passed"). The negative stage is not run on a public chain.
+
+| Step | Result |
+|---|---|
+| First wallet sync from genesis | 17:33 to 21:46, 4 h 13 min (DUST was the slow part: about 2.0 million indexes at 115 to 290 per second; shielded and unshielded finished first) |
+| DUST registration | submitted 21:51, transaction `008bdda3c0adf1e02e6f1ae643e8004d7d724f081633d36406aa1332c95b9f4c2d` |
+| DUST available | 60 DUST at 22:15, about 24 minutes after the registration |
+| PoR | deployed (`fba2cac99ead…`, 16 s); indexer shows the initial state (no reports, admin commitment stored); `publish_solvency_report` accepted by the node (25 s); the on-chain attestation equals the one computed by `src/por/reserves.ts` |
+| AML_Gate | deployed (`7a1d0e596505…`); indexer shows the initial root and list version 1; `prove_not_sanctioned` accepted, receipt recorded (119 s); `update_sanctions_root` accepted, root changed and version is 2 |
+| Run ended | 22:18:34 |
+
+**Not recorded:** the full contract addresses (the script printed only the first 12 characters; it prints the
+full address from the next run on), the amount of tNIGHT the faucet gave, and the DUST cost per transaction.
+
+**Lessons**
+- **The first sync is the cost, not the contracts.** It took over four hours, and Assetprice started a second sync
+  on the same host at the same time. The deploy and the calls took about three minutes after DUST was ready.
+- **The wallet state was saved only after a complete sync.** A run that stopped half-way would have lost all
+  progress. Since 2026-11-19 `syncWallet` saves a snapshot every 10 minutes (`integration/README.md`). The
+  restore of a partial snapshot is not tested.
+- **The Blockfrost project is shared.** One token served both Assetprice and CE; the project is called
+  `assetprice-preprod`, and the Starter plan allows one project and 50,000 requests a day. About 2,500 requests
+  were used by the time the sync was past 90 %. Whether the project should get a shared name or CE its own
+  project (needs a higher plan) is not decided.
+- **Messages in the log that did not matter:** `Wallet.Sync` errors (about 35, the sync continued after each) and
+  "Abnormal Closure" from the node WebSocket at start.
+- The faucet and the DUST registration worked the same way as the documentation describes.
+
 ## Resources on shaun3 and the later production machine (2026-11-17)
 shaun3 is a development and test host, not the production machine. The finished system is meant to run on a
 much more powerful machine that has not been bought yet; sizing for it is not decided here.
