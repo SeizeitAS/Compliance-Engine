@@ -56,6 +56,14 @@ MIDNIGHT_NETWORK=preprod npm run chain:check                  # syncs (first tim
 ```
 The stage with corrupted proofs refuses to run on a public chain. The Blockfrost token is redacted in output.
 
+**Saved wallet state.** The first sync of a public network takes hours (several hours for Assetprice on the same
+host). The sync saves a snapshot to the git-ignored `integration/.wallet-state/` (mode 600, one file per network and
+seed) every 10 minutes and once more when the sync is complete. A new run restores the last snapshot and syncs only
+the gap; if restoring fails it logs a warning and syncs from genesis. Before 2026-11-19 the state was saved only
+after a complete sync, so a run that stopped half-way lost all progress. The snapshot is not tested yet against
+a restore from a partial sync. `MIDNIGHT_WALLET_STATE=off` turns saving off. The directory holds wallet state
+derived from the seed: treat it like the seed and never commit or share it.
+
 ## Shared with Assetprice (from 2026-11-17)
 The local stack on shaun3 is also used by the Assetprice publisher. It links to this workspace's
 `node_modules` and uses the same genesis wallet (ALICE). So: do not change or delete the installed packages

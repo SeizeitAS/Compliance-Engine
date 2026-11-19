@@ -277,7 +277,31 @@ export async function syncWallet(
 ): Promise<FacadeState> {
   logger.info('Syncing wallet...');
   let emissionCount = 0;
-  const state = await Rx.firstValueFrom(
+  // A first sync of a public network can take hours. Save a snapshot every 10 minutes so that a stopped or
+  // killed run continues from the last snapshot instead of from genesis. A failed snapshot is never fatal.
+  let saving = false;
+  const snapshotTimer = stateFiles.has(wallet)
+    ? setInterval(() => {
+        if (saving) return;
+        saving = true;
+        saveWalletState(logger, wallet)
+          .catch((error) => logger.warn(`Intermediate wallet snapshot failed (${String(error)}); continuing.`))
+          .finally(() => {
+            saving = false;
+          });
+      }, SNAPSHOT_INTERVAL_MS)
+    : undefined;
+  let state: FacadeState;
+  try {
+    state = await syncUntilComplete();
+  } finally {
+    if (snapshotTimer) clearInterval(snapshotTimer);
+  }
+  await saveWalletState(logger, wallet);
+  return state;
+
+  function syncUntilComplete(): Promise<FacadeState> {
+    return Rx.firstValueFrom(
     wallet.state().pipe(
       Rx.tap((state: FacadeState) => {
         emissionCount++;
@@ -317,8 +341,7 @@ export async function syncWallet(
       }),
     ),
   );
-  await saveWalletState(logger, wallet);
-  return state;
+  }
 }
 
 // ---------------------------------------------------------------------------
@@ -332,6 +355,7 @@ export async function syncWallet(
 // it starts from a new genesis each time. MIDNIGHT_WALLET_STATE=off turns this
 // off.
 
+const SNAPSHOT_INTERVAL_MS = 10 * 60_000;
 const STATE_DIR = fileURLToPath(new URL('../.wallet-state/', import.meta.url));
 const stateFiles = new WeakMap<WalletFacade, string>();
 
