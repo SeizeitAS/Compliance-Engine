@@ -16,5 +16,6 @@
 | `SCRUM.md` | Roles, cadence, Definition of Done, backlog, sprint log |
 | `TIME_TRACKING.md` | Time log convention and reporting |
 | `research/sisit-insight-review.md` | Candidate additions (eIDAS 2.0, business wallet, ...) |
+| `research/ce-21-spike.md` | CE-21 spike: what CIP-30 and Midnight wallets sign, multisig limits, open items |
 | `../locales/README.md` | How to add a language |
 | `../CONTRIBUTING.md` | How to contribute |

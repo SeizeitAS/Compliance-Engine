@@ -88,7 +88,7 @@ tamper-evident; the report shows it in a separate section with the weaker assura
 
 ### CE-21: control proof schemes (8 points)
 Make `Holding.control` a tagged union `{ scheme, ... }` and verify per scheme.
-1. **Verify the unknowns first (spike, 1 point):** read the CIP-30 text and a real wallet's `signData`
+1. **Verify the unknowns first (spike, 1 point). Done 2026-11-20 as far as it can be without a real wallet: see `docs/research/ce-21-spike.md` (CIP-30 payload is signed as is, script addresses cannot sign, Midnight unshielded keys are BIP-340 Schnorr or ECDSA with address = SHA-256 of a Schnorr key; the message frame and a real wallet vector are still open).** read the CIP-30 text and a real wallet's `signData`
    output; read the Midnight wallet SDK for the unshielded key and signature scheme.
 2. **`cip30-ed25519`:** parse `COSE_Sign1` and `COSE_Key`, rebuild the `Sig_structure`, verify EdDSA, check
    payload equals our challenge bytes and the protected-header address equals the holding address.
