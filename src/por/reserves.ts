@@ -11,6 +11,12 @@
  * reserves are never overstated) and the hashes that `contracts/PoR.compact` stores
  * (`reserve_package`, `attestation`). An auditor runs this against the published report.
  *
+ * CUSTODIAL HOLDINGS (CE-27). Assets held at a third party (an exchange) have no key the company controls, so
+ * no control proof exists. They are listed in `ReservePackage.custodial` with the custodian, the account
+ * reference and the hash of the custodian's statement, and are DOCUMENTED, never COUNTED: the NOK value goes
+ * in `documentedCustodial`, never in `reserves`. A package that contains custodial holdings or a policy hash
+ * is hashed with the v2 tag; a package without them keeps the v1 hash, so existing reports and vectors stay valid.
+ *
  * NOT covered (see docs/proof-of-reserves.md): reading the real balance at the snapshot height from
  * each chain, address derivation for real chains (needs blake2b-224 or keccak, so it is injectable and
  * fails closed), secp256k1 control proofs, and Merkle-anchored price inclusion.
@@ -29,6 +35,17 @@ export interface Holding {
   haircutBps?: number; // 0..10000, value counted = value * (10000 - haircut) / 10000
   control: { publicKey: Hash; signature: Hash }; // ed25519, 32-byte key and 64-byte signature
 }
+/** An asset held at a third party. Documented, never counted as a proven reserve. */
+export interface CustodialHolding {
+  custodian: string; // for example "NBX"
+  accountRef: string; // the custodian's account reference, no secrets
+  asset: string;
+  amount: bigint; // base units, as stated by the custodian
+  decimals: number;
+  asOf: bigint; // unix seconds the statement is valid for
+  staked: boolean; // part of the balance is staked at the custodian (a claim on the custodian)
+  statementHash: Hash; // sha-256 of the custodian's statement (32 bytes hex); the statement itself is not published
+}
 export interface PricePoint {
   asset: string;
   nokPerUnitE8: bigint; // NOK per whole unit times 10^8
@@ -39,6 +56,9 @@ export interface ReservePackage {
   liabilitiesRoot: Hash;
   holdings: Holding[];
   prices: PricePoint[];
+  custodial?: CustodialHolding[];
+  /** sha-256 of the counting policy document that was applied (32 bytes hex). Bound into the package hash. */
+  policyHash?: Hash;
 }
 export interface Options {
   asOf: bigint; // unix seconds of the snapshot the prices must match
@@ -54,13 +74,31 @@ export type Failure =
   | "DUPLICATE_PRICE"
   | "STALE_PRICE"
   | "FUTURE_PRICE"
+  | "DUPLICATE_CUSTODIAL"
+  | "FUTURE_STATEMENT"
   | "BAD_CONTROL_PROOF"
   | "ADDRESS_DERIVATION_UNSUPPORTED"
   | "ADDRESS_KEY_MISMATCH"
   | "RESERVES_MISMATCH"
   | "MALFORMED_INPUT";
+/** One line of the report: every holding appears, with whether it counts and why (D3). */
+export interface ReportLine {
+  kind: "control-proof" | "custodial-attested";
+  label: string;
+  asset: string;
+  counted: boolean;
+  reason: string;
+  valueNok: bigint; // ore; for a proven holding after haircut, for a custodial one the documented value
+}
 export type Result =
-  | { valid: true; reserves: bigint; packageHash: Hash; attestation: Hash }
+  | {
+      valid: true;
+      reserves: bigint; // counted only: holdings with a verified control proof
+      documentedCustodial: bigint; // NOK ore documented at custodians, NEVER part of `reserves`
+      lines: ReportLine[];
+      packageHash: Hash;
+      attestation: Hash;
+    }
   | { valid: false; reason: Failure; detail: string };
 
 const sha = (...parts: Uint8Array[]): Hash => {
@@ -90,6 +128,8 @@ const field = (s: string): Buffer => {
 export const TAG_HOLDING = "ce.por.holding.v1";
 export const TAG_PRICE = "ce.por.price.v1";
 export const TAG_PACKAGE = "ce.por.package.v1";
+export const TAG_PACKAGE_V2 = "ce.por.package.v2";
+export const TAG_CUSTODIAL = "ce.por.custodial.v1";
 export const TAG_CHALLENGE = "ce.por.challenge.v1";
 export const TAG_ATTEST = "ce.por.attest.v1";
 
@@ -107,12 +147,29 @@ export const priceLeaf = (p: PricePoint): Hash => sha(pad32(TAG_PRICE), field(p.
 
 const orderedHash = (leaves: Hash[]): Hash => sha(...[...leaves].sort().map(hexBytes));
 
-/** Hash stored on-chain as `reserve_package`. Order of holdings and prices does not matter. */
-export const packageHash = (pkg: ReservePackage): Hash =>
+export const custodialLeaf = (c: CustodialHolding): Hash =>
   sha(
-    pad32(TAG_PACKAGE), num32(pkg.period), hexBytes(pkg.liabilitiesRoot),
-    hexBytes(orderedHash(pkg.holdings.map(holdingLeaf))), hexBytes(orderedHash(pkg.prices.map(priceLeaf))),
+    pad32(TAG_CUSTODIAL), field(c.custodian), field(c.accountRef), field(c.asset), num32(c.amount),
+    num32(BigInt(c.decimals)), num32(c.asOf), num32(c.staked ? 1n : 0n), hexBytes(c.statementHash),
   );
+
+/**
+ * Hash stored on-chain as `reserve_package`. Order of holdings, custodial holdings and prices does not matter.
+ * Without custodial holdings and without a policy hash this is the v1 hash; otherwise the v2 hash that also
+ * covers them, so a changed statement hash, amount or policy changes the package hash.
+ */
+export const packageHash = (pkg: ReservePackage): Hash => {
+  const holdings = hexBytes(orderedHash(pkg.holdings.map(holdingLeaf)));
+  const prices = hexBytes(orderedHash(pkg.prices.map(priceLeaf)));
+  const custodial = pkg.custodial ?? [];
+  if (custodial.length === 0 && pkg.policyHash === undefined) {
+    return sha(pad32(TAG_PACKAGE), num32(pkg.period), hexBytes(pkg.liabilitiesRoot), holdings, prices);
+  }
+  return sha(
+    pad32(TAG_PACKAGE_V2), num32(pkg.period), hexBytes(pkg.liabilitiesRoot), holdings, prices,
+    hexBytes(orderedHash(custodial.map(custodialLeaf))), pkg.policyHash === undefined ? Buffer.alloc(32) : hexBytes(pkg.policyHash),
+  );
+};
 
 /** Mirrors the circuit `bind_attestation`. */
 export const attestation = (period: bigint, liabilitiesRoot: Hash, reserves: bigint, pkgHash: Hash): Hash =>
@@ -123,6 +180,9 @@ export function holdingValue(h: Holding, p: PricePoint): bigint {
   const gross = (h.amount * p.nokPerUnitE8) / (10n ** BigInt(h.decimals) * 10n ** 6n);
   return (gross * BigInt(10000 - (h.haircutBps ?? 0))) / 10000n;
 }
+/** NOK ore documented for a custodial holding (no haircut: it is never counted). */
+export const custodialValue = (c: CustodialHolding, p: PricePoint): bigint =>
+  (c.amount * p.nokPerUnitE8) / (10n ** BigInt(c.decimals) * 10n ** 6n);
 
 const ED25519_SPKI_PREFIX = Buffer.from("302a300506032b6570032100", "hex");
 const verifyEd25519 = (publicKeyHex: Hash, messageHex: Hash, signatureHex: Hash): boolean => {
@@ -156,6 +216,15 @@ function malformed(pkg: ReservePackage, claimed: bigint): string | undefined {
     if (h.amount > MAX_U128) return "amount outside Uint<128>";
     if (h.snapshotHeight < 0n) return "negative snapshot height";
   }
+  if (pkg.policyHash !== undefined && !isHex(pkg.policyHash, 32)) return "policyHash must be 64 lowercase hex characters";
+  for (const c of pkg.custodial ?? []) {
+    if (!isHex(c.statementHash, 32)) return "custodial statementHash must be 64 lowercase hex characters";
+    if (typeof c.custodian !== "string" || c.custodian === "" || typeof c.accountRef !== "string" || c.accountRef === "") {
+      return "custodial holding needs a custodian and an account reference";
+    }
+    if (c.amount > MAX_U128) return "custodial amount outside Uint<128>";
+    if (c.asOf < 0n || c.asOf > MAX_U64) return "custodial asOf outside Uint<64>";
+  }
   return undefined;
 }
 
@@ -176,6 +245,7 @@ export function verifyReservePackage(pkg: ReservePackage, claimedReserves: bigin
   }
 
   const seen = new Set<string>();
+  const lines: ReportLine[] = [];
   let total = 0n;
   for (const h of pkg.holdings) {
     const id = JSON.stringify([h.chain, h.address, h.asset]);
@@ -194,11 +264,65 @@ export function verifyReservePackage(pkg: ReservePackage, claimedReserves: bigin
     if (!verifyEd25519(h.control.publicKey, challenge(pkg.period, pkg.liabilitiesRoot, h.chain, h.address), h.control.signature)) {
       return fail("BAD_CONTROL_PROOF", id);
     }
-    total += holdingValue(h, price);
+    const value = holdingValue(h, price);
+    total += value;
+    lines.push({ kind: "control-proof", label: `${h.chain}:${h.address}`, asset: h.asset, counted: true, reason: "control proof verified", valueNok: value });
   }
+
+  // Custodial holdings: documented, never counted.
+  const seenCustodial = new Set<string>();
+  let documented = 0n;
+  for (const c of pkg.custodial ?? []) {
+    const id = JSON.stringify([c.custodian, c.accountRef, c.asset]);
+    if (seenCustodial.has(id)) return fail("DUPLICATE_CUSTODIAL", `${c.custodian}:${c.accountRef}:${c.asset}`);
+    seenCustodial.add(id);
+    if (c.amount < 0n || !Number.isInteger(c.decimals) || c.decimals < 0 || c.decimals > 36) return fail("BAD_HOLDING", id);
+    if (c.asOf > opts.asOf) return fail("FUTURE_STATEMENT", id);
+    const price = prices.get(c.asset);
+    if (!price) return fail("MISSING_PRICE", c.asset);
+    const value = custodialValue(c, price);
+    documented += value;
+    lines.push({
+      kind: "custodial-attested", label: `${c.custodian}:${c.accountRef}`, asset: c.asset, counted: false,
+      reason: c.staked ? "third-party custody, staked at the custodian" : "third-party custody", valueNok: value,
+    });
+  }
+  if (documented > MAX_U128) return fail("MALFORMED_INPUT", "documented custodial value exceeds Uint<128>");
 
   if (total > MAX_U128) return fail("MALFORMED_INPUT", "computed reserves exceed Uint<128>");
   if (total !== claimedReserves) return fail("RESERVES_MISMATCH", `computed ${total}, claimed ${claimedReserves}`);
   const pkgHash = packageHash(pkg);
-  return { valid: true, reserves: total, packageHash: pkgHash, attestation: attestation(pkg.period, pkg.liabilitiesRoot, total, pkgHash) };
+  return {
+    valid: true, reserves: total, documentedCustodial: documented, lines,
+    packageHash: pkgHash, attestation: attestation(pkg.period, pkg.liabilitiesRoot, total, pkgHash),
+  };
+}
+
+/** What the books say a custodian holds (for example from Business 20), for reconciliation with a statement. */
+export interface BookBalance { custodian: string; accountRef: string; asset: string; amount: bigint }
+export interface ReconciliationLine {
+  custodian: string;
+  accountRef: string;
+  asset: string;
+  statement: bigint | undefined; // base units, from the custodial holding
+  books: bigint | undefined;
+  difference: bigint | undefined; // statement minus books
+  status: "match" | "mismatch" | "missing-in-books" | "missing-in-statement";
+}
+/** Compare custodian statements with the books, line by line. Books are not an independent source; this only finds differences. */
+export function reconcileCustodial(custodial: CustodialHolding[], books: BookBalance[]): ReconciliationLine[] {
+  const key = (x: { custodian: string; accountRef: string; asset: string }) => JSON.stringify([x.custodian, x.accountRef, x.asset]);
+  const stmt = new Map(custodial.map((c) => [key(c), c] as const));
+  const book = new Map(books.map((b) => [key(b), b] as const));
+  const out: ReconciliationLine[] = [];
+  for (const k of [...new Set([...stmt.keys(), ...book.keys()])].sort()) {
+    const s = stmt.get(k), b = book.get(k);
+    const ref = (s ?? b)!;
+    const status = s && b ? (s.amount === b.amount ? "match" : "mismatch") : s ? "missing-in-books" : "missing-in-statement";
+    out.push({
+      custodian: ref.custodian, accountRef: ref.accountRef, asset: ref.asset, statement: s?.amount, books: b?.amount,
+      difference: s && b ? s.amount - b.amount : undefined, status,
+    });
+  }
+  return out;
 }

@@ -16,6 +16,6 @@ date,person,sprint,task_id,category,hours,note
 2026-11-16,setereng,S1,CE-30,documentation,0.25,-ai: plan for node verification and Preprod smoke test
 2026-11-16,setereng,S1,CE-33,documentation,0.5,-ai: Apache-2.0 license; two articles; review of the owner article
 2026-11-18,setereng,S1,CE-30,ops,0.25,-ai: read the shared Blockfrost guide; token status checked
-2026-11-19,setereng,S1,CE-30,ops,0.5,-ai: Preprod run on shaun3; sync; DUST; deploy and call PoR and AML_Gate
+2026-11-19,setereng,S1,CE-30,ops,0.5,-ai: Preprod run on the test host; sync; DUST; deploy and call PoR and AML_Gate
 2026-11-19,setereng,S1,CE-30,development,0.5,-ai: wallet snapshot every 10 minutes during sync; README
 2026-11-19,setereng,S1,CE-30,documentation,0.5,-ai: Preprod results and lessons in network-plan and SCRUM; full address in chain-check

@@ -1,6 +1,6 @@
 # Plan: the reserve side of Proof of Reserves (CE-21 to CE-24 and CE-26)
 
-Status: **plan, nothing built yet.** Date: 2026-11-16.
+Status: **CE-27 built (2026-11-19); the rest is plan.** Date: 2026-11-16.
 
 ## Goal
 Close the gap named in `docs/security-review.md` SR-2 and SR-11: today `verifyReservePackage`
@@ -72,7 +72,10 @@ What follows from that:
 Story points use the project scale. Each step ends with `npm test` green and, where a circuit changes,
 the three checks (`crosscheck`, `runtime:check`, `prove`) on both ledgers.
 
-### CE-27: custodial attested holdings (3 points), first
+### CE-27: custodial attested holdings (3 points), first. DONE 2026-11-19
+Built as `custodial` on the package (kept apart from `holdings`), `policyHash`, report `lines` with `counted` and a
+reason, `documentedCustodial`, and `reconcileCustodial` (`src/por/reserves.ts`, `test/custodial.test.ts`, 12 tests).
+Deviation: the Business 20 adapter is not built; only the comparison function exists. The text below is the plan.
 The only case that exists today. A holding kind `custodial-attested` carries `{ custodian, accountRef,
 statementHash, asOf, staked }` instead of a control proof. Rules: it is **never** counted as a proven
 reserve (`counted: false`, reason "third-party custody"); it is included in the package hash so it is

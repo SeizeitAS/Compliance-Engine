@@ -51,8 +51,20 @@ for another period, root or figure. `verifyReservePackage` (`src/por/reserves.ts
 - **Prices:** NOK per whole unit times 10^8 with a timestamp (Assetprice); stale (default over 3600 s),
   future, missing and duplicate prices are rejected.
 - **Valuation:** integer arithmetic in ore, rounded down, haircut applied: reserves are never overstated.
-- **Output:** the recomputed reserve total, `reserve_package` and `attestation`, which must equal the
-  on-chain report.
+- **Custodial holdings (CE-27, 2026-11-19):** assets held at a third party (today: NBX) have no key the company
+  controls, so they cannot have a control proof. They are listed in `custodial` with custodian, account
+  reference, asset, amount, statement date, a `staked` flag and the SHA-256 of the custodian's statement. They are
+  **documented, never counted**: their NOK value is returned as `documentedCustodial` and is never part of
+  `reserves`, and a claimed reserve figure that includes them is rejected. Every holding appears in `lines` with
+  `counted` and a reason. Weaker assurance: the evidence is the custodian's own statement.
+- **Policy hash:** an optional `policyHash` (SHA-256 of the counting policy that was applied) is bound into the
+  package hash. A package with custodial holdings or a policy hash is hashed with the v2 tag; a package without
+  them keeps the v1 hash, so earlier reports stay valid.
+- **Reconciliation:** `reconcileCustodial` compares custodian statements with the books (for example Business 20)
+  line by line and reports match, mismatch, missing in books or missing in statement. The books are not an
+  independent source; this finds differences only.
+- **Output:** the recomputed reserve total (counted only), the documented custodial total, the report lines,
+  `reserve_package` and `attestation`, which must equal the on-chain report.
 
 Limits, stated plainly:
 - Balances at the snapshot height are **claimed**; the auditor must re-read them from each chain.
