@@ -21,3 +21,5 @@ date,person,sprint,task_id,category,hours,note
 2026-11-19,setereng,S1,CE-30,documentation,0.5,-ai: Preprod results and lessons in network-plan and SCRUM; full address in chain-check
 2026-11-19,setereng,S1,CE-27,development,0.5,-ai: custodial attested holdings; policy hash; reconciliation in reserves.ts; 12 new tests
 2026-11-19,setereng,S1,CE-27,documentation,0.25,-ai: proof-of-reserves; reserve-side-plan; SCRUM updated
+2026-11-20,setereng,S1,CE-21,research,0.75,-ai: spike on CIP-30 and CIP-8 and Midnight signing; SDK check on the test host; note in docs/research
+2026-11-20,setereng,S1,CE-21,development,0.25,-ai: local test page for a real wallet signature (Cardano and Midnight)
