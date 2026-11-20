@@ -82,7 +82,7 @@ Preprod all run ledger 9 (Mainnet 2026-11-06, Preview relaunched 2026-11-07, Pre
 midnight-js 5.0.0 and proof server 9.0.0. The earlier note here that Preprod stayed on ledger 8 is
 superseded.
 
-| Component | This repo / the compiler host (shaun3) | Public networks |
+| Component | This repo / the compiler host (the test host) | Public networks |
 |---|---|---|
 | Compiler | 0.31.0 (language 0.23.0) | 0.36.0 (language 0.28.0) |
 | compact-runtime | 0.16.0 | 0.21.0 |

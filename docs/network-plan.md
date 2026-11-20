@@ -14,7 +14,7 @@ documentation retrieved the same day (sources at the end); items marked "to chec
 - Mainnet, Preview and Preprod all run **ledger 9**: node 2.1.101, indexer 4.4.101, proof server 9.0.0,
   **wallet SDK 2.0.0, midnight-js 5.0.0, testkit-js 5.0.0**, compact-js 3.0.0, runtime 0.21.0, toolchain 0.36.0.
   Our artefacts already match this (`docs/toolchain.md`). Ledger 8 artefacts cannot be deployed.
-- midnight-js 5 and compact-js 3 are **ESM only**; the SDK needs **Node 22 or newer** (shaun3 has Node 18).
+- midnight-js 5 and compact-js 3 are **ESM only**; the SDK needs **Node 22 or newer** (the test host has Node 18).
 - Every transaction costs **DUST**. NIGHT alone is not enough: the wallet must register its NIGHT UTXOs for
   DUST generation (`registerNightUtxosForDustGeneration`) and wait for DUST to accrue. Fees need two or more
   DUST spends (one spend can be rejected with `OutsideTimeToDismiss`) and there is a new minimum block price.
@@ -37,7 +37,7 @@ documentation retrieved the same day (sources at the end); items marked "to chec
 | Accounts to create | none | none | **Blockfrost project and token** |
 | Wallet | pre-funded genesis (dev) wallet | throwaway test wallet | throwaway test wallet |
 | Tokens | already funded | faucet | faucet (rate limited) |
-| Needs a node we run | yes (Docker, shaun3) | no | no |
+| Needs a node we run | yes (Docker, test host) | no | no |
 | Can show a node rejecting bad proofs | **yes, without side effects** | possible, not advisable | possible, not advisable |
 | Closest to mainnet | no | partly | **yes** |
 
@@ -52,8 +52,8 @@ wait for the Blockfrost decision.
 ## Decisions and permissions needed from you
 | # | Item | Why |
 |---|---|---|
-| D5 | Run the local stack on **shaun3** | Docker and 11 GB RAM are there; this Windows machine has no Docker. Existing containers already use ports 6300 (proof server 8.1.0) and 9944/9933 (old node), so the new stack gets alternative host ports through a compose override and the old containers stay untouched. |
-| D6 | **Downloads** | The `midnight-local-dev` repository (GitHub), its Docker images (size to be stated before pulling), npm packages (midnight-js 5.0.0, wallet SDK 2.0.0, testkit-js 5.0.0 and dependencies), and a Node 22 or newer runtime for the client scripts (install on shaun3, or run the client on this machine with Node 24 against shaun3's ports). |
+| D5 | Run the local stack on **the test host** | Docker and 11 GB RAM are there; this Windows machine has no Docker. Existing containers already use ports 6300 (proof server 8.1.0) and 9944/9933 (old node), so the new stack gets alternative host ports through a compose override and the old containers stay untouched. |
+| D6 | **Downloads** | The `midnight-local-dev` repository (GitHub), its Docker images (size to be stated before pulling), npm packages (midnight-js 5.0.0, wallet SDK 2.0.0, testkit-js 5.0.0 and dependencies), and a Node 22 or newer runtime for the client scripts (install on the test host, or run the client on this machine with Node 24 against the test host's ports). |
 | D7 | **Create a throwaway test wallet** (Preprod/Preview) | A new seed is a new identity. It would be generated locally, stored only in a git-ignored `.env.<network>` file on the host, never printed to chat or committed. It holds only test tokens. The local network uses the dev genesis wallet and needs no new wallet. |
 | D8 | **Blockfrost account** (Preprod only) | You create it and the token; I do not create accounts. Free-plan limits are not stated in the docs (to check). |
 | D9 | Contract **maintenance authority** at deploy | Test deploys use a throwaway signing key. The real decision belongs to CE-25. |
@@ -95,7 +95,7 @@ wait for the Blockfrost decision.
    not secret). Request tNIGHT at the faucet, **to the unshielded address** (shielded and DUST addresses are
    rejected), register the NIGHT UTXOs for DUST and wait (reports say 1 to 20 minutes; a fresh wallet's first
    sync is slow).
-3. **Proof server:** the ledger 9 container on shaun3 (`proof-server-l9`), never a third-party one.
+3. **Proof server:** the ledger 9 container on the test host (`proof-server-l9`), never a third-party one.
 4. **Deploy and call** both contracts on Preprod (positive path only; no corrupted proofs on a public chain).
    Record the addresses and transaction hashes (public) in `docs/`.
 5. **Tidy up:** delete the seed file when finished, or keep it deliberately and say so.
@@ -127,7 +127,7 @@ MIDNIGHT_PROOF_SERVER=http://127.0.0.1:6301
 ```
 
 ## Phase 2 results (2026-11-19, times UTC)
-`MIDNIGHT_NETWORK=preprod npm run chain:check` ran on shaun3 against Preprod (ledger 9, through Blockfrost) with a
+`MIDNIGHT_NETWORK=preprod npm run chain:check` ran on the test host against Preprod (ledger 9, through Blockfrost) with a
 throwaway wallet, the local `proof-server-l9` on port 6301 and tNIGHT from the faucet. **All positive checks
 passed** (exit code 0, "All chain checks passed"). The negative stage is not run on a public chain.
 
@@ -157,20 +157,20 @@ full address from the next run on), the amount of tNIGHT the faucet gave, and th
   "Abnormal Closure" from the node WebSocket at start.
 - The faucet and the DUST registration worked the same way as the documentation describes.
 
-## Resources on shaun3 and the later production machine (2026-11-17)
-shaun3 is a development and test host, not the production machine. The finished system is meant to run on a
+## Resources on the test host and the later production machine (2026-11-17)
+The test host is for development and testing, not the production machine. The finished system is meant to run on a
 much more powerful machine that has not been bought yet; sizing for it is not decided here.
 
-**No PostgreSQL is needed for this plan.** shaun3 has none, and that is not an obstacle:
+**No PostgreSQL is needed for this plan.** The test host has none, and that is not an obstacle:
 - The local network uses `indexer-standalone` (`infra/ce-local/compose.yml`), which runs without a separate
-  database and already runs on shaun3.
+  database and already runs on the test host.
 - Preprod uses the node and the indexer hosted by Blockfrost. Only the wallet client and a local proof server
   run on our side; the wallet state is kept in files and LevelDB.
 - Assetprice and Business 20 use MariaDB on another host.
 PostgreSQL would be needed for a self-run Cardano-connected validator (Cardano db-sync) and possibly for a
 self-hosted indexer in a non-standalone setup (**not checked**). Neither is part of Compliance Engine's plan.
 
-**What is tight is memory and CPU.** Measured on shaun3 (Intel i3-7100, 4 threads, 11.6 GB RAM) on 2026-11-17:
+**What is tight is memory and CPU.** Measured on the test host (Intel i3-7100, 4 threads, 11.6 GB RAM) on 2026-11-17:
 
 | | |
 |---|---|
@@ -208,10 +208,10 @@ are answered; Phase 2 waits for D7 and D8.
   the circuits are sound for compliance (SR-1, SR-2 still stand) or that we are ready for mainnet.
 
 ## Cleaning up
-**The local stack on shaun3 is shared with Assetprice since 2026-11-17** (see "Shared resources" below). Do not
+**The local stack on the test host is shared with Assetprice since 2026-11-17** (see "Shared resources" below). Do not
 run `docker compose down`, remove the volumes or the `proof-server-l9` container without agreeing it with the
 Assetprice side first: that would remove its anchored test roots and break its publisher.
-When both sides agree: `docker compose down` (and remove its volumes) on shaun3, delete the cloned repository
+When both sides agree: `docker compose down` (and remove its volumes) on the test host, delete the cloned repository
 and the Node 22 install if one was added. Preprod: delete `.env.preprod`, nothing else persists.
 
 ## Phase 1 results and deviations from the plan (2026-11-16)
@@ -224,7 +224,7 @@ and the Node 22 install if one was added. Preprod: delete `.env.preprod`, nothin
   (ledger 9); `midnight_ledgerVersion` returns `1.0.1`, not a 9.x string. Memory stayed small: node 76 to
   200 MiB, indexer 35 to 95 MiB, host available memory never below 4 GB with the older containers left running.
   The proof server 8.1.0 was not stopped.
-- **Client:** Node 22.23.5 in `~/node22` (tarball checksum verified) on shaun3, so the Windows PC stayed free;
+- **Client:** Node 22.23.5 in `~/node22` (tarball checksum verified) on the test host, so the Windows PC stayed free;
   `integration/` holds about 410 MB of `node_modules`.
 - **Wallet:** the local network's dev genesis wallet, funded and holding DUST at once; no new wallet was
   created (D7 does not apply locally).
@@ -232,10 +232,10 @@ and the Node 22 install if one was added. Preprod: delete `.env.preprod`, nothin
   the client and the proof server before the node, so the node-level rejection is shown for a corrupted proof only.
 - **D9 (maintenance authority):** test deploys used the client's default (a freshly sampled signing key); the
   real decision stays with CE-25.
-- **Left running on shaun3:** the ce-local node and indexer containers (light) and `proof-server-l9`.
+- **Left running on the test host:** the ce-local node and indexer containers (light) and `proof-server-l9`.
   They are now also used by Assetprice: do not stop them without agreeing it (see below).
 
-## Shared resources on shaun3 (from 2026-11-17)
+## Shared resources on the test host (from 2026-11-17)
 Assetprice (separate repository, own backlog and time log) anchors its price roots on the same local network.
 - Its publisher (`~/assetprice-anchor`) uses this repository's `~/ce-l9/integration/node_modules` through a
   symlink, and copies of `integration/src/{wallet,providers,config}.ts`. Do not change or delete those

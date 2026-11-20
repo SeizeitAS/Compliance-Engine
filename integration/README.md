@@ -65,13 +65,13 @@ Preprod run (2026-11-19) and is not tested yet against a restore from a partial 
 derived from the seed: treat it like the seed and never commit or share it.
 
 ## Shared with Assetprice (from 2026-11-17)
-The local stack on shaun3 is also used by the Assetprice publisher. It links to this workspace's
+The local stack on the test host is also used by the Assetprice publisher. It links to this workspace's
 `node_modules` and uses the same genesis wallet (ALICE). So: do not change or delete the installed packages
 or `src/{wallet,providers,config}.ts` without telling the Assetprice side, and do not run `npm run chain:check`
 while it is publishing (UTXO conflict). Details in `docs/network-plan.md`.
 
 ## Cleaning up
-**Do not run these on shaun3 while Assetprice depends on the stack** (see above); agree it first.
+**Do not run these on the test host while Assetprice depends on the stack** (see above); agree it first.
 ```
 docker compose -f infra/ce-local/compose.yml down -v     # the local chain starts empty again next time
 docker rm -f proof-server-l9                              # only if nothing else uses it

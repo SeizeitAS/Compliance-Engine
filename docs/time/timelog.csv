@@ -4,7 +4,7 @@ date,person,sprint,task_id,category,hours,note
 2026-11-16,setereng,S1,CE-5,development,1.5,-ai: compile AML_Gate on Compact 0.31.0; fix reserved let with fold; crosschecks pass; push
 2026-11-16,setereng,S1,CE-6,development,0.25,-ai: rewrite PoR as Merkle sum tree; fix AML_Gate header comment
 2026-11-16,setereng,S1,CE-6,development,0.25,-ai: runtime check; proving on proof server 8.1.0; reserve package verifier; ledger 9 finding
-2026-11-17,setereng,S1,CE-8,ops,0.25,-ai: Assetprice instructions; shared shaun3 resources documented
+2026-11-17,setereng,S1,CE-8,ops,0.25,-ai: Assetprice instructions; shared test-host resources documented
 2026-11-17,setereng,S1,CE-24,development,0.75,-ai: price inclusion proof verifier with tests; docs
 2026-11-17,setereng,S1,CE-14,ops,0.5,-ai: CI workflow runs npm test on Node 22.18
 2026-11-17,setereng,S1,CE-33,ops,1.75,-ai: GitHub setup; issue and PR templates; eight issues; social image; article fixes
@@ -12,7 +12,7 @@ date,person,sprint,task_id,category,hours,note
 2026-11-16,setereng,S1,CE-20,development,0.5,-ai: build run and prove both contracts on ledger 9
 2026-11-16,setereng,S1,CE-15,review,0.5,-ai: first internal security pass; harden reserve verifier
 2026-11-16,setereng,S1,CE-27,documentation,0.25,-ai: reserve-side plan and owner decisions D1-D4
-2026-11-16,setereng,S1,CE-29,development,0.75,-ai: resource check; phase 1 on shaun3; verify proofs on a real node; ledger:check
+2026-11-16,setereng,S1,CE-29,development,0.75,-ai: resource check; phase 1 on the test host; verify proofs on a real node; ledger:check
 2026-11-16,setereng,S1,CE-30,documentation,0.25,-ai: plan for node verification and Preprod smoke test
 2026-11-16,setereng,S1,CE-33,documentation,0.5,-ai: Apache-2.0 license; two articles; review of the owner article
 2026-11-18,setereng,S1,CE-30,ops,0.25,-ai: read the shared Blockfrost guide; token status checked
