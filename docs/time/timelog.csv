@@ -24,3 +24,4 @@ date,person,sprint,task_id,category,hours,note
 2026-11-20,setereng,S1,CE-21,research,0.75,-ai: spike on CIP-30 and CIP-8 and Midnight signing; SDK check on the test host; note in docs/research
 2026-11-20,setereng,S1,CE-21,development,0.25,-ai: local test page for a real wallet signature (Cardano and Midnight)
 2026-11-20,setereng,S1,CE-31,documentation,0.25,-ai: issue #10 linked to CE-31 (own accounts and assetprice price proofs); internal bank email draft (13:39-13:42 and 14:24-14:31)
+2026-11-20,setereng,S1,CE-30,documentation,0.1,-ai: internal host name replaced with "the test host" in docs and unpushed commits (14:37-14:44)
