@@ -37,6 +37,8 @@ strict input validation. The plan generalises the control proof and fills in the
 - `CONTRIBUTING.md` rule 3: no runtime dependency without discussion.
 
 ## Decisions (owner, 2026-11-16)
+D1 to D3 are also recorded as ADRs 0002 to 0004 in `docs/adr/`.
+
 | # | Decision | Outcome |
 |---|---|---|
 | D1 | Dependencies | **Approved:** `@noble/hashes`, `@noble/curves`, `@scure/base`; exact versions, lockfile, used only outside the core (`sumTree`, `indexedMerkleTree`). A CONTRIBUTING.md exception is recorded when CE-21 starts. A minimal in-repo CBOR reader covers COSE. |

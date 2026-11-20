@@ -36,6 +36,7 @@ npm run time:report
 - `src/eudi/sdJwtVc.ts`: SD-JWT VC (ES256) credential intake verifier (CE-9 step 1).
 - `src/i18n/`: language system. `locales/`: catalogs.
 - `contracts/AML_Gate.compact` and `contracts/PoR.compact`: both compiled and cross-checked 2026-11-16. `src/por/sumTree.ts` is the PoR reference (Merkle sum tree), `docs/proof-of-reserves.md` its design and limits.
+- `GLOSSARY.md` (project terms) and `docs/adr/` (decisions): keep them current with the `domain-modeling` skill.
 - `docs/`: `non-membership-proof.md`, `eudi-intake.md`, `toolchain.md`, `i18n.md`, `SCRUM.md`, `TIME_TRACKING.md`, `research/sisit-insight-review.md`.
 
 ## Status (2026-11-16)
@@ -51,6 +52,7 @@ npm run time:report
 | CE-30 Preprod smoke test | DONE 2026-11-19: both contracts deployed and called on Preprod (results in `docs/network-plan.md`, Phase 2 results). Never create wallets, accounts or tokens without the owner's explicit ok. `ledger:check` verifies nothing (the ledger wasm accepts tampered and unproven transactions) |
 | CE-15 security review | IN PROGRESS: first internal pass in `docs/security-review.md`; High findings SR-1 (key not bound to identity, needs CE-9), SR-2 (reserves declared), SR-3 (single admin, CE-25) open. No production claim until closed and externally reviewed |
 | CE-21 to 27 | Reserve-side plan in `docs/reserve-side-plan.md`; decisions D1 to D4 taken. CE-27 (custodial attested holdings) is DONE 2026-11-19. Next: the CE-21 spike. Today all funds are at NBX with no keys, so on-chain control proofs run on fixtures until self-custody exists |
+| CE-34 agent skills | IN PROGRESS: `wizard` and `domain-modeling` vendored in `.claude/skills/`, `GLOSSARY.md`, `docs/adr/`, `scripts/wizards/ce29-rerun.sh` (never run). Own skills repository planned in `docs/agent-skills-plan.md`, waiting for the owner to create it |
 | CE-7, 8, 10 to 14, 16 to 19 | Backlog, see `docs/SCRUM.md` |
 
 ## Assumptions the first compile settled (2026-11-16)

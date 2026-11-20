@@ -10,3 +10,6 @@ Third-party material
   https://github.com/midnightntwrk/midnight-examples (Copyright (C) Midnight Foundation,
   Apache License 2.0). Their original license headers are retained.
 - infra/ce-local/compose.yml is derived from the hello-world compose.yml in the same repository.
+- .claude/skills/wizard/ and .claude/skills/domain-modeling/ (and the wizard library at the top of
+  scripts/wizards/ce29-rerun.sh) are copied from https://github.com/mattpocock/skills
+  (Copyright (c) 2026 Matt Pocock, MIT License, see .claude/skills/LICENSE-mattpocock-skills).
