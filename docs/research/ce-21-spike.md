@@ -2,7 +2,7 @@
 
 Question (step 1 of CE-21 in `docs/reserve-side-plan.md`): what exactly does a real wallet sign, and what must a
 verifier check, for Cardano (CIP-30), Midnight (unshielded keys) and multisig set-ups? **No code was changed.**
-Everything marked *verified here* was run on shaun3 with the installed Midnight SDK (ledger-v9) and throwaway
+Everything marked *verified here* was run on the test host with the installed Midnight SDK (ledger-v9) and throwaway
 random keys; nothing secret was used. Everything marked *from the spec* is read from a specification or a
 secondary source and has not been checked against a real wallet.
 
