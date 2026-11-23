@@ -20,7 +20,7 @@ Blueprint: `docs/compliance_engine_documentation.md` (original draft, has known 
 
 ## Commands
 ```
-npm test                      # needs Node >= 22.18 (runs .ts directly). 74 tests, no dependencies
+npm test                      # needs Node >= 22.18 (runs .ts directly). 109 tests, no dependencies
 npm run contracts:compile     # needs the Compact toolchain (`compact` on PATH)
 npm run crosscheck:por        # same for PoR (needs: npm install --no-save @midnight-ntwrk/compact-runtime@0.16.0)
 npm run runtime:check          # runs both contracts in the runtime: 22 accept/reject checks

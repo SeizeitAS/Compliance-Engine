@@ -92,12 +92,23 @@ Make `Holding.control` a tagged union `{ scheme, ... }` and verify per scheme.
    output; read the Midnight wallet SDK for the unshielded key and signature scheme.
 2. **`cip30-ed25519`:** parse `COSE_Sign1` and `COSE_Key`, rebuild the `Sig_structure`, verify EdDSA, check
    payload equals our challenge bytes and the protected-header address equals the holding address.
+   **DONE 2026-11-23** (`src/por/cip30.ts`, `test/cip30.test.ts`; also checks `hashed`, the key hash with an own
+   BLAKE2b-224, script addresses and the network). Checked against a real Lace signature.
 3. **`evm-personal-sign`:** EIP-191 message from the challenge hex, keccak-256, secp256k1 recovery, compare to
    the Ethereum address (EIP-55 aware).
 4. **`midnight-unshielded`:** scheme as found in step 1 (BIP-340 Schnorr is the hypothesis).
+   **DONE 2026-11-23** (`src/por/midnight.ts`, `src/por/schnorr.ts`, `test/midnight.test.ts`): BIP-340 over the SHA-256
+   digest of `midnight_signed_message:<size>:` + challenge; address = SHA-256 of the key. Checked against a real Lace signature.
 5. **Script and multisig addresses:** either an m-of-n set of single-key proofs checked against the
    script, or an explicit `attested-custodian` scheme that is reported as weaker and never counted
    silently as proven.
+- **Deviation from D1:** no `@noble` or `@scure` dependency was added. BLAKE2b and BIP-340 verification were written in
+  BigInt (verification only, public data) and tested against `node:crypto`, Python, the official BIP-340 vectors and the
+  Midnight ledger, so the core stays dependency-free (CONTRIBUTING.md rule 3). Keccak-256 and secp256k1 recovery for
+  `evm-personal-sign` (step 3) are still to do, and may then need the approved libraries or the same approach.
+- **Still open in CE-21:** step 3 (EVM), step 5 (script and multisig addresses), and wallet vectors from a second
+  wallet. The real Lace signatures are not in the repository (the owner chose not to publish the testnet addresses);
+  the tests use signatures made by the ledger's `signData` and generated keys.
 - Acceptance: known-answer vectors from each ecosystem (a CIP-30 signature produced by a real wallet, an
   EIP-191 example, the BIP-340 test vectors) pass; a signature for another period, root, address or
   payload fails; unknown scheme fails closed.

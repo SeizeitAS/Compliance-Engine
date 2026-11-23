@@ -17,13 +17,36 @@
  * in `documentedCustodial`, never in `reserves`. A package that contains custodial holdings or a policy hash
  * is hashed with the v2 tag; a package without them keeps the v1 hash, so existing reports and vectors stay valid.
  *
+ * CONTROL SCHEMES (CE-21). A holding's `control` is either the original raw ed25519 proof (no `scheme` field; the
+ * address comes from the injected `deriveAddress`), or a scheme-tagged proof from a real wallet: `cip30-ed25519`
+ * (Cardano, CIP-30 `signData`, ./cip30.ts) or `midnight-unshielded` (Midnight dApp connector, BIP-340, ./midnight.ts).
+ * For the tagged schemes the address binding is part of the proof, so `deriveAddress` is not used. Script (multisig)
+ * addresses cannot produce a CIP-30 proof and are rejected; hold such assets as custodial or attest them separately.
+ *
  * NOT covered (see docs/proof-of-reserves.md): reading the real balance at the snapshot height from
  * each chain, address derivation for real chains (needs blake2b-224 or keccak, so it is injectable and
  * fails closed), secp256k1 control proofs, and Merkle-anchored price inclusion.
  */
 import { createHash, createPublicKey, verify } from "node:crypto";
+import { verifyCip30Proof } from "./cip30.ts";
+import { verifyMidnightProof } from "./midnight.ts";
 
 export type Hash = string; // lowercase hex
+
+/** Original scheme: a raw ed25519 signature over the challenge, key to address through the injected `deriveAddress`. */
+export interface RawControl { publicKey: Hash; signature: Hash } // ed25519, 32-byte key and 64-byte signature
+/**
+ * CE-21, Cardano: the output of CIP-30 `signData` (`signature` = hex of the COSE_Sign1, `key` = hex of the COSE_Key).
+ * The holding's `address` is the lowercase hex of the RAW address bytes (the bech32 form is CE-22).
+ * `network` optionally requires the address network (0 testnet, 1 mainnet).
+ */
+export interface Cip30Control { scheme: "cip30-ed25519"; signature: string; key: string; network?: number }
+/**
+ * CE-21, Midnight: the output of the dApp connector `signData` (BIP-340 Schnorr). The holding's `address` is the
+ * lowercase hex of the 32-byte address payload (the Bech32m form is CE-22).
+ */
+export interface MidnightControl { scheme: "midnight-unshielded"; verifyingKey: Hash; signature: Hash }
+export type Control = RawControl | Cip30Control | MidnightControl;
 
 export interface Holding {
   chain: string;
@@ -33,7 +56,7 @@ export interface Holding {
   decimals: number; // base units per whole unit = 10^decimals
   snapshotHeight: bigint;
   haircutBps?: number; // 0..10000, value counted = value * (10000 - haircut) / 10000
-  control: { publicKey: Hash; signature: Hash }; // ed25519, 32-byte key and 64-byte signature
+  control: Control;
 }
 /** An asset held at a third party. Documented, never counted as a proven reserve. */
 export interface CustodialHolding {
@@ -76,6 +99,7 @@ export type Failure =
   | "FUTURE_PRICE"
   | "DUPLICATE_CUSTODIAL"
   | "FUTURE_STATEMENT"
+  | "UNSUPPORTED_CONTROL_SCHEME"
   | "BAD_CONTROL_PROOF"
   | "ADDRESS_DERIVATION_UNSUPPORTED"
   | "ADDRESS_KEY_MISMATCH"
@@ -126,6 +150,7 @@ const field = (s: string): Buffer => {
 };
 
 export const TAG_HOLDING = "ce.por.holding.v1";
+export const TAG_HOLDING_V2 = "ce.por.holding.v2"; // holdings with a scheme-tagged control proof (CE-21)
 export const TAG_PRICE = "ce.por.price.v1";
 export const TAG_PACKAGE = "ce.por.package.v1";
 export const TAG_PACKAGE_V2 = "ce.por.package.v2";
@@ -137,12 +162,23 @@ export const TAG_ATTEST = "ce.por.attest.v1";
 export const challenge = (period: bigint, liabilitiesRoot: Hash, chain: string, address: string): Hash =>
   sha(pad32(TAG_CHALLENGE), num32(period), hexBytes(liabilitiesRoot), field(chain), field(address));
 
-export const holdingLeaf = (h: Holding): Hash =>
-  sha(
-    pad32(TAG_HOLDING), field(h.chain), field(h.address), field(h.asset), num32(h.amount),
+/** A raw-ed25519 holding keeps the v1 leaf, so earlier reports and vectors stay valid; scheme-tagged proofs use the v2 leaf. */
+export const holdingLeaf = (h: Holding): Hash => {
+  const c = h.control;
+  if (!("scheme" in c)) {
+    return sha(
+      pad32(TAG_HOLDING), field(h.chain), field(h.address), field(h.asset), num32(h.amount),
+      num32(BigInt(h.decimals)), num32(h.snapshotHeight), num32(BigInt(h.haircutBps ?? 0)),
+      hexBytes(c.publicKey), hexBytes(c.signature),
+    );
+  }
+  const key = c.scheme === "cip30-ed25519" ? c.key : c.scheme === "midnight-unshielded" ? c.verifyingKey : "";
+  return sha(
+    pad32(TAG_HOLDING_V2), field(h.chain), field(h.address), field(h.asset), num32(h.amount),
     num32(BigInt(h.decimals)), num32(h.snapshotHeight), num32(BigInt(h.haircutBps ?? 0)),
-    hexBytes(h.control.publicKey), hexBytes(h.control.signature),
+    field(c.scheme), field(c.signature), field(key),
   );
+};
 export const priceLeaf = (p: PricePoint): Hash => sha(pad32(TAG_PRICE), field(p.asset), num32(p.nokPerUnitE8), num32(p.timestamp));
 
 const orderedHash = (leaves: Hash[]): Hash => sha(...[...leaves].sort().map(hexBytes));
@@ -203,6 +239,7 @@ const fail = (reason: Failure, detail: string): Result => ({ valid: false, reaso
 
 const MAX_U64 = (1n << 64n) - 1n;
 const MAX_U128 = (1n << 128n) - 1n; // the circuit's Uint<128> reserve and sum type
+const isAnyHex = (s: unknown): boolean => typeof s === "string" && s.length > 0 && s.length % 2 === 0 && /^[0-9a-f]+$/.test(s);
 const isHex = (s: unknown, bytes: number): boolean => typeof s === "string" && s.length === bytes * 2 && /^[0-9a-f]+$/.test(s);
 
 /** Reject anything that would be silently truncated or reinterpreted by hashing (Buffer.from(hex) drops bad input). */
@@ -211,8 +248,16 @@ function malformed(pkg: ReservePackage, claimed: bigint): string | undefined {
   if (claimed < 0n || claimed > MAX_U128) return "claimed reserves outside Uint<128>";
   if (!isHex(pkg.liabilitiesRoot, 32)) return "liabilitiesRoot must be 64 lowercase hex characters";
   for (const h of pkg.holdings) {
-    if (!isHex(h.control.publicKey, 32)) return "control public key must be 64 lowercase hex characters";
-    if (!isHex(h.control.signature, 64)) return "control signature must be 128 lowercase hex characters";
+    const c = h.control;
+    if (!("scheme" in c)) {
+      if (!isHex(c.publicKey, 32)) return "control public key must be 64 lowercase hex characters";
+      if (!isHex(c.signature, 64)) return "control signature must be 128 lowercase hex characters";
+    } else if (c.scheme === "cip30-ed25519") {
+      if (!isAnyHex(c.signature) || !isAnyHex(c.key)) return "cip30 control signature and key must be lowercase hex";
+    } else if (c.scheme === "midnight-unshielded") {
+      if (!isHex(c.verifyingKey, 32)) return "midnight verifying key must be 64 lowercase hex characters";
+      if (!isHex(c.signature, 64)) return "midnight signature must be 128 lowercase hex characters";
+    }
     if (h.amount > MAX_U128) return "amount outside Uint<128>";
     if (h.snapshotHeight < 0n) return "negative snapshot height";
   }
@@ -258,11 +303,26 @@ export function verifyReservePackage(pkg: ReservePackage, claimedReserves: bigin
     const price = prices.get(h.asset);
     if (!price) return fail("MISSING_PRICE", h.asset);
 
-    const derived = derive(h.chain, h.control.publicKey);
-    if (derived === undefined) return fail("ADDRESS_DERIVATION_UNSUPPORTED", `chain ${h.chain}`);
-    if (derived !== h.address) return fail("ADDRESS_KEY_MISMATCH", id);
-    if (!verifyEd25519(h.control.publicKey, challenge(pkg.period, pkg.liabilitiesRoot, h.chain, h.address), h.control.signature)) {
-      return fail("BAD_CONTROL_PROOF", id);
+    const control = h.control;
+    const wanted = challenge(pkg.period, pkg.liabilitiesRoot, h.chain, h.address);
+    if (!("scheme" in control)) {
+      const derived = derive(h.chain, control.publicKey);
+      if (derived === undefined) return fail("ADDRESS_DERIVATION_UNSUPPORTED", `chain ${h.chain}`);
+      if (derived !== h.address) return fail("ADDRESS_KEY_MISMATCH", id);
+      if (!verifyEd25519(control.publicKey, wanted, control.signature)) return fail("BAD_CONTROL_PROOF", id);
+    } else if (control.scheme === "cip30-ed25519") {
+      if (h.chain !== "cardano") return fail("UNSUPPORTED_CONTROL_SCHEME", `cip30-ed25519 is for chain cardano, not ${h.chain}`);
+      const r = verifyCip30Proof({
+        challenge: wanted, address: h.address, signature: control.signature, key: control.key,
+        ...(control.network !== undefined ? { network: control.network } : {}),
+      });
+      if (!r.valid) return fail("BAD_CONTROL_PROOF", `${id}: ${r.reason}: ${r.detail}`);
+    } else if (control.scheme === "midnight-unshielded") {
+      if (h.chain !== "midnight") return fail("UNSUPPORTED_CONTROL_SCHEME", `midnight-unshielded is for chain midnight, not ${h.chain}`);
+      const r = verifyMidnightProof({ challenge: wanted, address: h.address, verifyingKey: control.verifyingKey, signature: control.signature });
+      if (!r.valid) return fail("BAD_CONTROL_PROOF", `${id}: ${r.reason}: ${r.detail}`);
+    } else {
+      return fail("UNSUPPORTED_CONTROL_SCHEME", `unknown control scheme`);
     }
     const value = holdingValue(h, price);
     total += value;

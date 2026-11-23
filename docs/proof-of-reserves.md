@@ -50,6 +50,16 @@ for another period, root or figure. `verifyReservePackage` (`src/por/reserves.ts
   `H(period, liabilities_root, chain, address)`: it proves control and cannot be replayed.
 - **Prices:** NOK per whole unit times 10^8 with a timestamp (Assetprice); stale (default over 3600 s),
   future, missing and duplicate prices are rejected.
+- **Control schemes (CE-21):** `control` is either the raw ed25519 proof above, or a scheme-tagged proof from a real
+  wallet. `cip30-ed25519` (Cardano, `src/por/cip30.ts`) verifies the output of CIP-30 `signData` (COSE_Sign1 and COSE_Key):
+  algorithm EdDSA, the address in the header equal to the holding address, `hashed` not true, the payload equal to our
+  challenge, blake2b-224 of the key equal to the address's key hash, and the Ed25519 signature over the `Sig_structure`.
+  Script (multisig) addresses are rejected: no wallet can sign for them. `midnight-unshielded` (`src/por/midnight.ts`)
+  verifies the dApp connector's `signData`: BIP-340 Schnorr over the SHA-256 digest of
+  `midnight_signed_message:<size>:` + challenge, with the address equal to SHA-256 of the 32-byte key. Both were checked
+  against a real Lace signature (testnet) and are implemented without dependencies (own BLAKE2b and BIP-340, tested against
+  `node:crypto`, Python, the official BIP-340 vectors and the Midnight ledger). The address of a tagged proof is the hex of
+  the raw address bytes until address encoding (CE-22) exists; `deriveAddress` is not used for them.
 - **Valuation:** integer arithmetic in ore, rounded down, haircut applied: reserves are never overstated.
 - **Custodial holdings (CE-27, 2026-11-19):** assets held at a third party (today: NBX) have no key the company
   controls, so they cannot have a control proof. They are listed in `custodial` with custodian, account

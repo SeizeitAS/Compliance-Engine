@@ -24,8 +24,13 @@ The signed values are not in this repository (they belong to a wallet address); 
 **Midnight (dApp connector), checked with ledger-v9 `verifySignature` and a hand-written Bech32m decoder:**
 - Lace supports `signData` for Midnight: `scheme` = `schnorr_bip340`, 32-byte `verifyingKey`, 64-byte signature.
 - **The signed message is `midnight_signed_message:<n>:` followed by the payload bytes**, where `<n>` is the payload
-  size written in decimal ASCII (here `32`), **not hashed**. Verified: only this form verifies. The raw payload, the
-  framed message with the payload as hex text, and SHA-256 of either all fail.
+  size written in decimal ASCII (here `32`). Verified: only this form verifies (checked with the ledger's `verifySignature`). The
+  raw payload and the framed message with the payload as hex text fail.
+- **Correction, 2026-11-23 (found when the verifier was built):** the ledger's `signData` and `verifySignature` work on the
+  **SHA-256 digest** of the bytes they are given. So the signature is BIP-340 Schnorr over **SHA-256(`midnight_signed_message:32:` +
+  payload)**. The two statements fit together: the ledger hashes internally, so handing it the unhashed framed bytes works,
+  while handing it a pre-hashed message would hash twice. A plain BIP-340 verifier (no hashing) must be given the digest. This was
+  confirmed against the ledger on random keys for message lengths 0 to 100 and against the real Lace signature.
 - The Bech32m unshielded address (`mn_addr_preprod1…`, valid Bech32m checksum) carries 32 bytes that
   **equal SHA-256 of the verifying key**, and `addressFromKey` in the ledger gives the same value. So a Schnorr key
   maps to its address with `node:crypto` alone.
@@ -72,7 +77,7 @@ v4.1.0 in the installed package):
   ([servicedesk issue 203](https://github.com/midnightntwrk/servicedesk/issues/203),
   [ows-core PR 15](https://github.com/WingRiders/ows-core/pull/15)) describe BIP-340 over the framed message and say
   the framing is pinned in MIP-0031, and that the frame stops message signatures from being usable as ledger
-  signatures. **Now verified against Lace (2026-11-23): decimal ASCII length, payload bytes, no hashing.**
+  signatures. **Now verified against Lace (2026-11-23): decimal ASCII length and the payload bytes; the signature is over the SHA-256 digest of the framed bytes (hashed inside the ledger's `signData`).**
 - The result is `{ scheme?, data, signature, verifyingKey }`; a missing `scheme` means `schnorr_bip340`.
 - A community wallet reference listed Lace's `signData` support as **No** when last indexed. **That was wrong or out of date:**
   the Lace build used on 2026-11-23 supports it (see the real results above). Still feature-detect.
@@ -93,7 +98,7 @@ v4.1.0 in the installed package):
    equal to the holding address; blake2b-224(`x`) equal to the address's payment key hash; Ed25519 over the rebuilt
    `Sig_structure`.
 2. **`midnight-unshielded` (step 4):** build for `schnorr` (BIP-340 via `@noble/curves`, approved in D1), address
-   = SHA-256(key), message = `midnight_signed_message:<n>:` + challenge bytes (confirmed with a real Lace signature).
+   = SHA-256(key), message = `midnight_signed_message:<n>:` + challenge bytes (confirmed with a real Lace signature); BIP-340 is verified over the SHA-256 digest of the framed bytes.
    Leave `ecdsa` unsupported (fails closed) until its address derivation is known. `@noble/curves` has BIP-340;
    the ledger's own `verifySignature` agreed with the framed message and is the reference for the test.
 3. **Fallback for a Midnight wallet that cannot `signData` (Lace can, as of 2026-11-23):** sign with the SDK keystore (`signData` in ledger-v9, which
@@ -104,7 +109,7 @@ v4.1.0 in the installed package):
 
 ## Open items
 1. Done 2026-11-23: a real Lace CIP-30 output (embedded payload, `hashed` false, `COSE_Key` contents) and a real Midnight
-   signature (frame, no hashing, Schnorr). Still to do: keep them as known-answer vectors in `test/vectors/` once the owner
+   signature (frame, SHA-256 inside the ledger, Schnorr). Still to do: keep them as known-answer vectors in `test/vectors/` once the owner
    agrees to publish the (testnet) addresses, and add negative cases (other challenge, other key, `hashed` true, wrong network).
 2. Whether Lace's shared wallet and the hardware wallets can sign for a CIP-30 control proof (needs the owner's set-up).
 3. Whether the unshielded wallet derived from a seed always uses `schnorr` (this Lace wallet did), and the ECDSA address
