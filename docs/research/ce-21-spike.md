@@ -1,10 +1,35 @@
-# CE-21 spike: control proof schemes (2026-11-20)
+# CE-21 spike: control proof schemes (2026-11-20, real wallet results 2026-11-23)
 
 Question (step 1 of CE-21 in `docs/reserve-side-plan.md`): what exactly does a real wallet sign, and what must a
 verifier check, for Cardano (CIP-30), Midnight (unshielded keys) and multisig set-ups? **No code was changed.**
-Everything marked *verified here* was run on the development test host with the installed Midnight SDK (ledger-v9) and throwaway
+Everything marked *verified here* was run on shaun3 with the installed Midnight SDK (ledger-v9) and throwaway
 random keys; nothing secret was used. Everything marked *from the spec* is read from a specification or a
 secondary source and has not been checked against a real wallet.
+
+## Real wallet results: Lace, 2026-11-23 (verified)
+A fresh Lace test wallet (Chrome extension, API version `4.1.0-canary` for Midnight) signed a 32-byte test challenge on
+Cardano (network id 0, testnet) and on Midnight Preprod. Both signatures were verified independently of the wallet.
+The signed values are not in this repository (they belong to a wallet address); the findings are:
+
+**Cardano (CIP-30), checked by parsing the CBOR by hand and verifying with Node's Ed25519:**
+- `signature` is a `COSE_Sign1` with four elements. Protected header: `alg` = -8 (EdDSA), `kid` (label 4) = the
+  57-byte address, and `"address"` = the same 57 bytes. Unprotected header: `hashed` = **false**.
+- **The payload is embedded** (not detached) and equals the challenge exactly (32 bytes).
+- `COSE_Key`: kty 1 (OKP), `kid` = the address, alg -8, crv 6 (Ed25519), `x` = the 32-byte public key.
+- The signed bytes are `["Signature1", protected, h'', payload]` (CBOR, as CIP-8 describes). The Ed25519 signature
+  **verifies** over that structure with `x`, and does not verify over a changed payload.
+- The address was a base address (header byte `0x00`: type 0, network 0, 57 bytes). The payment key hash in bytes 1 to 28
+  **equals blake2b-224(`x`)**, so the key really belongs to the address.
+
+**Midnight (dApp connector), checked with ledger-v9 `verifySignature` and a hand-written Bech32m decoder:**
+- Lace supports `signData` for Midnight: `scheme` = `schnorr_bip340`, 32-byte `verifyingKey`, 64-byte signature.
+- **The signed message is `midnight_signed_message:<n>:` followed by the payload bytes**, where `<n>` is the payload
+  size written in decimal ASCII (here `32`), **not hashed**. Verified: only this form verifies. The raw payload, the
+  framed message with the payload as hex text, and SHA-256 of either all fail.
+- The Bech32m unshielded address (`mn_addr_preprod1…`, valid Bech32m checksum) carries 32 bytes that
+  **equal SHA-256 of the verifying key**, and `addressFromKey` in the ledger gives the same value. So a Schnorr key
+  maps to its address with `node:crypto` alone.
+- The connector accepted `encoding: 'hex'` and signed the decoded bytes.
 
 ## Cardano: CIP-30 `signData` (from the spec)
 Sources: [CIP-30](https://raw.githubusercontent.com/cardano-foundation/CIPs/master/CIP-0030/README.md),
@@ -47,10 +72,10 @@ v4.1.0 in the installed package):
   ([servicedesk issue 203](https://github.com/midnightntwrk/servicedesk/issues/203),
   [ows-core PR 15](https://github.com/WingRiders/ows-core/pull/15)) describe BIP-340 over the framed message and say
   the framing is pinned in MIP-0031, and that the frame stops message signatures from being usable as ledger
-  signatures. **Unverified:** the exact byte layout and hashing; needs a real wallet signature as a test vector.
+  signatures. **Now verified against Lace (2026-11-23): decimal ASCII length, payload bytes, no hashing.**
 - The result is `{ scheme?, data, signature, verifyingKey }`; a missing `scheme` means `schnorr_bip340`.
-- A community wallet reference listed Lace's `signData` support as **No** when last indexed (it was about 51 days
-  old; not confirmed against Lace itself). Feature-detect, and plan a fallback.
+- A community wallet reference listed Lace's `signData` support as **No** when last indexed. **That was wrong or out of date:**
+  the Lace build used on 2026-11-23 supports it (see the real results above). Still feature-detect.
 
 ## Multisig and hardware wallets
 - Lace has a "shared wallet" feature built on multisig (beta in the announcements found); Lace supports Ledger and,
@@ -62,22 +87,26 @@ v4.1.0 in the installed package):
   (b) the `attested-custodian` path from CE-27 (documented, never counted).
 
 ## What this means for the plan
-1. **`cip30-ed25519` (CE-21 step 2) can be built now** from the spec, with `node:crypto` for Ed25519, a small
-   CBOR reader written for exactly this structure, and `@noble/hashes` for blake2b-224. It still needs one real
-   Lace or other wallet signature as a known-answer vector before it can be called verified.
+1. **`cip30-ed25519` (CE-21 step 2) can be built now**, with `node:crypto` for Ed25519, a small CBOR reader written for
+   exactly this structure, and `@noble/hashes` for blake2b-224. It has a real Lace vector (2026-11-23) to test against.
+   Rules the verifier must enforce: `alg` -8; embedded payload equal to the challenge; `hashed` false; header address
+   equal to the holding address; blake2b-224(`x`) equal to the address's payment key hash; Ed25519 over the rebuilt
+   `Sig_structure`.
 2. **`midnight-unshielded` (step 4):** build for `schnorr` (BIP-340 via `@noble/curves`, approved in D1), address
-   = SHA-256(key), message = `midnight_signed_message:<n>:` + challenge bytes. Leave `ecdsa` unsupported (fails
-   closed) until its address derivation is known. The byte layout stays **unconfirmed** until a real wallet
-   signature exists.
-3. **Fallback for Midnight if Lace cannot `signData`:** sign with the SDK keystore (`signData` in ledger-v9, which
+   = SHA-256(key), message = `midnight_signed_message:<n>:` + challenge bytes (confirmed with a real Lace signature).
+   Leave `ecdsa` unsupported (fails closed) until its address derivation is known. `@noble/curves` has BIP-340;
+   the ledger's own `verifySignature` agreed with the framed message and is the reference for the test.
+3. **Fallback for a Midnight wallet that cannot `signData` (Lace can, as of 2026-11-23):** sign with the SDK keystore (`signData` in ledger-v9, which
    signs raw bytes with no frame). That proves control of the key but not that a wallet user consented; the scheme
    must then be labelled differently from `midnight-unshielded` so the two are never confused.
 4. **Script addresses (step 5):** implement option (a) only when a multisig set-up is chosen; until then they stay
    documented through CE-27.
 
-## Open items (all need a real wallet, owner action)
-1. A real Lace (or other) CIP-30 `signData` output on a **testnet** address: gives the known-answer vector, tells
-   embedded vs. detached payload, and shows what `COSE_Key` contains.
-2. A real Midnight `signData` signature (if Lace or another wallet supports it): confirms the frame bytes and hashing.
-3. Whether Lace's shared wallet and the hardware wallets can sign for a CIP-30 control proof.
-4. Which scheme a seed-derived Midnight wallet uses, and the ECDSA address derivation if it matters.
+## Open items
+1. Done 2026-11-23: a real Lace CIP-30 output (embedded payload, `hashed` false, `COSE_Key` contents) and a real Midnight
+   signature (frame, no hashing, Schnorr). Still to do: keep them as known-answer vectors in `test/vectors/` once the owner
+   agrees to publish the (testnet) addresses, and add negative cases (other challenge, other key, `hashed` true, wrong network).
+2. Whether Lace's shared wallet and the hardware wallets can sign for a CIP-30 control proof (needs the owner's set-up).
+3. Whether the unshielded wallet derived from a seed always uses `schnorr` (this Lace wallet did), and the ECDSA address
+   derivation if it matters.
+4. A second wallet (other than Lace) for each chain, so the verifier is not tuned to one implementation.
