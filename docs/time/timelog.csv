@@ -26,3 +26,6 @@ date,person,sprint,task_id,category,hours,note
 2026-11-20,setereng,S1,CE-31,documentation,0.25,-ai: issue #10 linked to CE-31 (own accounts and assetprice price proofs); internal bank email draft (13:39-13:42 and 14:24-14:31)
 2026-11-20,setereng,S1,CE-30,documentation,0.1,-ai: internal host name replaced with "the test host" in docs and unpushed commits (14:37-14:44)
 2026-11-23,setereng,S1,CE-21,research,1.0,-ai: real Lace test; CIP-30 and Midnight signatures verified by hand; findings in docs/research
+2026-11-23,setereng,S1,CE-21,development,0.75,-ai: verifiers for Cardano CIP-30 and Midnight (own BLAKE2b and BIP-340); wired into the reserve package; 35 tests
+2026-11-23,setereng,S1,CE-21,development,0.5,-ai: Ethereum personal_sign verifier (own Keccak-256 and secp256k1 recovery); 12 tests
+2026-11-23,setereng,S1,CE-21,documentation,0.25,-ai: spike note and proof-of-reserves and plan and SCRUM updated; correction on Midnight hashing
