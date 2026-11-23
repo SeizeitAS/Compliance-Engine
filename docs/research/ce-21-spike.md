@@ -107,6 +107,16 @@ v4.1.0 in the installed package):
 4. **Script addresses (step 5):** implement option (a) only when a multisig set-up is chosen; until then they stay
    documented through CE-27.
 
+## Ethereum (decided 2026-11-23, not yet checked against a real wallet)
+`evm-personal-sign` is built from the EIP-191 specification. Design choices: the wallet signs the **text**
+`ce.por.control.v1:` + the 64-character challenge hex (readable for the user, and no ambiguity about whether a wallet treats
+a `0x...` string as bytes or as text); the verifier hashes `"\x19Ethereum Signed Message:\n" + <byte length> + text` with Keccak-256,
+recovers the public key from the 65-byte signature (v as 0/1 or 27/28) and compares the derived address. Verified: the
+recovery reproduces the published web3.js `eth.accounts.sign('Some data', key)` example, private key 1 gives the known
+address, and Keccak-256 agrees with `node:crypto` sha3-256 when the padding byte is swapped and with known Ethereum vectors.
+A contract wallet or Safe (ERC-1271) cannot produce an EOA signature and is out of scope. Wallets differ in how they show
+long text, so a real MetaMask (or other) signature is still needed to confirm the round trip.
+
 ## Open items
 1. Done 2026-11-23: a real Lace CIP-30 output (embedded payload, `hashed` false, `COSE_Key` contents) and a real Midnight
    signature (frame, SHA-256 inside the ledger, Schnorr). Still to do: keep them as known-answer vectors in `test/vectors/` once the owner

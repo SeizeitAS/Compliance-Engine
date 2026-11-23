@@ -3,6 +3,10 @@ import assert from "node:assert/strict";
 import { createPrivateKey, createPublicKey, sign } from "node:crypto";
 import { verifyReservePackage, packageHash, challenge, holdingLeaf, type Holding, type PricePoint, type ReservePackage } from "../src/por/reserves.ts";
 import { blake2b } from "../src/por/blake2b.ts";
+import { keccak256 } from "../src/por/keccak.ts";
+import { personalMessageHash, evmMessage } from "../src/por/evm.ts";
+import { G, N, inv, mod, mul } from "../src/por/secp256k1.ts";
+import { createHash } from "node:crypto";
 
 const ROOT = "ab".repeat(32);
 const PERIOD = 202611n;
@@ -129,4 +133,48 @@ test("a raw ed25519 holding keeps its v1 leaf (earlier reports stay valid)", () 
   const raw: Holding = { chain: "test", address: "aa", asset: "ADA", amount: 1n, decimals: 6, snapshotHeight: 1n, control: { publicKey: "11".repeat(32), signature: "22".repeat(64) } };
   const tagged: Holding = { ...raw, control: { scheme: "midnight-unshielded", verifyingKey: "11".repeat(32), signature: "22".repeat(64) } };
   assert.notEqual(holdingLeaf(raw), holdingLeaf(tagged));
+});
+
+// ---- Ethereum: EIP-191 personal_sign built with a test-only ECDSA signer ----
+function evmHolding(d: bigint, amount: bigint): Holding {
+  const q = mul(G, d)!;
+  const pub = Buffer.concat([Buffer.from(q.x.toString(16).padStart(64, "0"), "hex"), Buffer.from(q.y.toString(16).padStart(64, "0"), "hex")]);
+  const address = "0x" + Buffer.from(keccak256(pub)).subarray(12).toString("hex");
+  const hash = personalMessageHash(evmMessage(challenge(PERIOD, ROOT, "ethereum", address)));
+  const z = BigInt("0x" + Buffer.from(hash).toString("hex"));
+  let k = mod(BigInt("0x" + createHash("sha256").update(hash).update(Buffer.from([d & 255n ? Number(d & 255n) : 1])).digest("hex")), N - 1n) + 1n;
+  for (;;) {
+    const R = mul(G, k)!;
+    const r = mod(R.x, N);
+    let s = mod(inv(k, N) * (z + r * d), N);
+    if (r !== 0n && s !== 0n) {
+      let rec = Number(R.y & 1n);
+      if (s > N / 2n) { s = N - s; rec ^= 1; }
+      const signature = "0x" + r.toString(16).padStart(64, "0") + s.toString(16).padStart(64, "0") + (27 + rec).toString(16);
+      return { chain: "ethereum", address, asset: "ETH", amount, decimals: 18, snapshotHeight: 100n, control: { scheme: "evm-personal-sign", signature } };
+    }
+    k += 1n;
+  }
+}
+
+test("an Ethereum personal_sign holding verifies and counts", () => {
+  const eth = evmHolding(0x4c0883a69102937d6231471b5dbb6204fe5129617082792ae468d01a3f362318n, 2n * 10n ** 18n); // 2 ETH
+  // 2 ETH at 200.00 NOK = 400 NOK = 40_000 ore
+  const ok = verifyReservePackage(pkg([eth], [price("ETH", 20_000_000_000n)]), 40_000n, opts);
+  assert.ok(ok.valid, ok.valid ? "" : ok.detail);
+  if (ok.valid) assert.equal(ok.reserves, 40_000n);
+});
+
+test("an Ethereum proof for another period or address, a tampered one and a wrong chain are rejected", () => {
+  const eth = evmHolding(7n, 10n ** 18n);
+  const prices = [price("ETH", 20_000_000_000n)];
+  assert.equal(reason(verifyReservePackage({ ...pkg([eth], prices), period: PERIOD + 1n }, 0n, opts)), "BAD_CONTROL_PROOF");
+  const other = { ...eth, address: evmHolding(8n, 1n).address };
+  assert.equal(reason(verifyReservePackage(pkg([other], prices), 0n, opts)), "BAD_CONTROL_PROOF");
+  const sig = (eth.control as { signature: string }).signature;
+  const bad = { ...eth, control: { scheme: "evm-personal-sign", signature: sig.slice(0, 12) + (sig[12] === "0" ? "1" : "0") + sig.slice(13) } as Holding["control"] };
+  assert.equal(reason(verifyReservePackage(pkg([bad], prices), 0n, opts)), "BAD_CONTROL_PROOF");
+  assert.equal(reason(verifyReservePackage(pkg([{ ...eth, chain: "cardano" }], prices), 0n, opts)), "UNSUPPORTED_CONTROL_SCHEME");
+  const malformedSig = { ...eth, control: { scheme: "evm-personal-sign", signature: "0x1234" } as Holding["control"] };
+  assert.equal(reason(verifyReservePackage(pkg([malformedSig], prices), 0n, opts)), "MALFORMED_INPUT");
 });

@@ -19,7 +19,8 @@
  *
  * CONTROL SCHEMES (CE-21). A holding's `control` is either the original raw ed25519 proof (no `scheme` field; the
  * address comes from the injected `deriveAddress`), or a scheme-tagged proof from a real wallet: `cip30-ed25519`
- * (Cardano, CIP-30 `signData`, ./cip30.ts) or `midnight-unshielded` (Midnight dApp connector, BIP-340, ./midnight.ts).
+ * (Cardano, CIP-30 `signData`, ./cip30.ts), `midnight-unshielded` (Midnight dApp connector, BIP-340, ./midnight.ts)
+ * or `evm-personal-sign` (Ethereum, EIP-191 `personal_sign`, ./evm.ts).
  * For the tagged schemes the address binding is part of the proof, so `deriveAddress` is not used. Script (multisig)
  * addresses cannot produce a CIP-30 proof and are rejected; hold such assets as custodial or attest them separately.
  *
@@ -30,6 +31,7 @@
 import { createHash, createPublicKey, verify } from "node:crypto";
 import { verifyCip30Proof } from "./cip30.ts";
 import { verifyMidnightProof } from "./midnight.ts";
+import { verifyEvmProof } from "./evm.ts";
 
 export type Hash = string; // lowercase hex
 
@@ -46,7 +48,12 @@ export interface Cip30Control { scheme: "cip30-ed25519"; signature: string; key:
  * lowercase hex of the 32-byte address payload (the Bech32m form is CE-22).
  */
 export interface MidnightControl { scheme: "midnight-unshielded"; verifyingKey: Hash; signature: Hash }
-export type Control = RawControl | Cip30Control | MidnightControl;
+/**
+ * CE-21, Ethereum: an EIP-191 `personal_sign` signature (65 bytes r, s, v as hex) over the text
+ * `ce.por.control.v1:<challenge hex>` (see ./evm.ts). The holding's `address` is `0x` plus 40 hex characters.
+ */
+export interface EvmControl { scheme: "evm-personal-sign"; signature: string }
+export type Control = RawControl | Cip30Control | MidnightControl | EvmControl;
 
 export interface Holding {
   chain: string;
@@ -257,6 +264,8 @@ function malformed(pkg: ReservePackage, claimed: bigint): string | undefined {
     } else if (c.scheme === "midnight-unshielded") {
       if (!isHex(c.verifyingKey, 32)) return "midnight verifying key must be 64 lowercase hex characters";
       if (!isHex(c.signature, 64)) return "midnight signature must be 128 lowercase hex characters";
+    } else if (c.scheme === "evm-personal-sign") {
+      if (typeof c.signature !== "string" || !/^(0x)?[0-9a-fA-F]{130}$/.test(c.signature)) return "evm signature must be 65 bytes of hex";
     }
     if (h.amount > MAX_U128) return "amount outside Uint<128>";
     if (h.snapshotHeight < 0n) return "negative snapshot height";
@@ -320,6 +329,10 @@ export function verifyReservePackage(pkg: ReservePackage, claimedReserves: bigin
     } else if (control.scheme === "midnight-unshielded") {
       if (h.chain !== "midnight") return fail("UNSUPPORTED_CONTROL_SCHEME", `midnight-unshielded is for chain midnight, not ${h.chain}`);
       const r = verifyMidnightProof({ challenge: wanted, address: h.address, verifyingKey: control.verifyingKey, signature: control.signature });
+      if (!r.valid) return fail("BAD_CONTROL_PROOF", `${id}: ${r.reason}: ${r.detail}`);
+    } else if (control.scheme === "evm-personal-sign") {
+      if (h.chain !== "ethereum") return fail("UNSUPPORTED_CONTROL_SCHEME", `evm-personal-sign is for chain ethereum, not ${h.chain}`);
+      const r = verifyEvmProof({ challenge: wanted, address: h.address, signature: control.signature });
       if (!r.valid) return fail("BAD_CONTROL_PROOF", `${id}: ${r.reason}: ${r.detail}`);
     } else {
       return fail("UNSUPPORTED_CONTROL_SCHEME", `unknown control scheme`);

@@ -58,8 +58,11 @@ for another period, root or figure. `verifyReservePackage` (`src/por/reserves.ts
   verifies the dApp connector's `signData`: BIP-340 Schnorr over the SHA-256 digest of
   `midnight_signed_message:<size>:` + challenge, with the address equal to SHA-256 of the 32-byte key. Both were checked
   against a real Lace signature (testnet) and are implemented without dependencies (own BLAKE2b and BIP-340, tested against
-  `node:crypto`, Python, the official BIP-340 vectors and the Midnight ledger). The address of a tagged proof is the hex of
-  the raw address bytes until address encoding (CE-22) exists; `deriveAddress` is not used for them.
+  `node:crypto`, Python, the official BIP-340 vectors and the Midnight ledger). `evm-personal-sign` (`src/por/evm.ts`) recovers
+  the signer of an EIP-191 `personal_sign` signature over the text `ce.por.control.v1:<challenge hex>` and compares it with the
+  holding's `0x` address (EIP-55 checked); it was tested against the published web3.js example and generated signatures, not yet a
+  real wallet. The address of the Cardano and Midnight proofs is the hex of the raw address bytes until address encoding
+  (CE-22) exists; `deriveAddress` is not used for tagged proofs.
 - **Valuation:** integer arithmetic in ore, rounded down, haircut applied: reserves are never overstated.
 - **Custodial holdings (CE-27, 2026-11-19):** assets held at a third party (today: NBX) have no key the company
   controls, so they cannot have a control proof. They are listed in `custodial` with custodian, account
