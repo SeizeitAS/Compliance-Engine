@@ -20,7 +20,7 @@ Blueprint: `docs/compliance_engine_documentation.md` (original draft, has known 
 
 ## Commands
 ```
-npm test                      # needs Node >= 22.18 (runs .ts directly). 121 tests, no dependencies
+npm test                      # needs Node >= 22.18 (runs .ts directly). 136 tests, no dependencies
 npm run contracts:compile     # needs the Compact toolchain (`compact` on PATH)
 npm run crosscheck:por        # same for PoR (needs: npm install --no-save @midnight-ntwrk/compact-runtime@0.16.0)
 npm run runtime:check          # runs both contracts in the runtime: 22 accept/reject checks
@@ -50,7 +50,7 @@ npm run time:report
 | CE-29 proof verification | **DONE locally** (2026-11-16): `integration/` runs both contracts on a real node (local ledger 9 network); the node accepted all three proving circuits and rejected a corrupted proof (node log "failed to verify proof: Invalid proof"). Not shown: a wrong verifier key at the node (client and proof server refuse it first), any public network, soundness. See `docs/proving.md`. To rerun: stack `infra/ce-local/compose.yml` (ports 19944/18088) plus proof server on 6301, Node 22 at `~/node22` on the compiler host, `integration/README.md` |
 | CE-30 Preprod smoke test | DONE 2026-11-19: both contracts deployed and called on Preprod (results in `docs/network-plan.md`, Phase 2 results). Never create wallets, accounts or tokens without the owner's explicit ok. `ledger:check` verifies nothing (the ledger wasm accepts tampered and unproven transactions) |
 | CE-15 security review | IN PROGRESS: first internal pass in `docs/security-review.md`; High findings SR-1 (key not bound to identity, needs CE-9), SR-2 (reserves declared), SR-3 (single admin, CE-25) open. No production claim until closed and externally reviewed |
-| CE-21 to 27 | Reserve-side plan in `docs/reserve-side-plan.md`; decisions D1 to D4 taken. CE-27 (custodial attested holdings) is DONE 2026-11-19. Next: the CE-21 spike. Today all funds are at NBX with no keys, so on-chain control proofs run on fixtures until self-custody exists |
+| CE-21 to 27 | Reserve-side plan in `docs/reserve-side-plan.md`; decisions D1 to D4 taken. CE-27 (custodial attested holdings) is DONE 2026-11-19. CE-21 verifiers and CE-22 address formats are built (CE-22 DONE 2026-11-24). Today all funds are at NBX with no keys, so on-chain control proofs run on fixtures until self-custody exists |
 | CE-7, 8, 10 to 14, 16 to 19 | Backlog, see `docs/SCRUM.md` |
 
 ## Assumptions the first compile settled (2026-11-16)

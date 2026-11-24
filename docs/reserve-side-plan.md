@@ -119,6 +119,7 @@ Make `Holding.control` a tagged union `{ scheme, ... }` and verify per scheme.
   payload fails; unknown scheme fails closed.
 
 ### CE-22: address derivation (5 points)
+**DONE 2026-11-24** (`src/por/address.ts`, `bech32.ts`, `test/address.test.ts`; the Midnight strings in the tests come from `@midnightntwrk/wallet-sdk-address-format`, the Cardano ones from CIP-19, the Ethereum ones from EIP-55). The original plan follows.
 Implement `deriveAddress(chain, key)` for Cardano (base and enterprise, mainnet and testnet), Ethereum
 and Midnight, replacing the injectable stub as the default. Known-answer tests from public examples;
 network and format mix-ups (testnet address in a mainnet report) must fail.

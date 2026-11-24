@@ -6,7 +6,7 @@
  * What the wallet signs: the connector frames the data as `"midnight_signed_message:" + <size> + ":" + <data>` (<size> is the
  * number of data bytes in decimal ASCII) and passes the framed bytes to the ledger's `signData`, which signs the SHA-256
  * digest of them with BIP-340 Schnorr. So the verifier checks BIP-340 over SHA-256(framed bytes). The address is the 32-byte payload
- * of the Bech32m address and equals SHA-256 of the 32-byte x-only verifying key (the Bech32m wrapping is CE-22: here
+ * of the Bech32m address and equals SHA-256 of the 32-byte x-only verifying key (./address.ts does the Bech32m wrapping: here
  * the address is the lowercase hex of those 32 bytes). Only the `schnorr_bip340` scheme is supported; `ecdsa_secp256k1_sha256`
  * fails closed because its address derivation is not known.
  */

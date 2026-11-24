@@ -61,8 +61,14 @@ for another period, root or figure. `verifyReservePackage` (`src/por/reserves.ts
   `node:crypto`, Python, the official BIP-340 vectors and the Midnight ledger). `evm-personal-sign` (`src/por/evm.ts`) recovers
   the signer of an EIP-191 `personal_sign` signature over the text `ce.por.control.v1:<challenge hex>` and compares it with the
   holding's `0x` address (EIP-55 checked); it was tested against the published web3.js example and generated signatures, not yet a
-  real wallet. The address of the Cardano and Midnight proofs is the hex of the raw address bytes until address encoding
-  (CE-22) exists; `deriveAddress` is not used for tagged proofs.
+  real wallet. **Addresses (CE-22, `src/por/address.ts`, `bech32.ts`):** a holding's address may be written in the human-readable form or as
+  hex: Cardano CIP-19 bech32 (`addr`, `addr_test`, `stake`, `stake_test`), Midnight unshielded Bech32m (`mn_addr`,
+  `mn_addr_<network>`) or Ethereum `0x` (EIP-55 checked). The verifier converts to the raw form, so the same address under two
+  spellings is one holding (a duplicate is rejected). `Options.networks` (`{ cardano: "mainnet", midnight: "preprod" }`) makes an
+  address on another network fail with `NETWORK_MISMATCH`; a malformed one fails with `BAD_ADDRESS`. The challenge is built from the
+  address string exactly as written in the report, so the wallet must sign for that spelling. Shielded and DUST addresses and
+  Byron addresses are rejected. `deriveAddress(chain, key, network)` derives Cardano enterprise, Midnight and Ethereum addresses;
+  the default for raw ed25519 proofs uses it for Cardano when a network is given.
 - **Valuation:** integer arithmetic in ore, rounded down, haircut applied: reserves are never overstated.
 - **Custodial holdings (CE-27, 2026-11-19):** assets held at a third party (today: NBX) have no key the company
   controls, so they cannot have a control proof. They are listed in `custodial` with custodian, account

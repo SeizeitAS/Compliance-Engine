@@ -7,6 +7,7 @@ import { keccak256 } from "../src/por/keccak.ts";
 import { personalMessageHash, evmMessage } from "../src/por/evm.ts";
 import { G, N, inv, mod, mul } from "../src/por/secp256k1.ts";
 import { createHash } from "node:crypto";
+import { cardanoAddress, deriveAddress, midnightAddress } from "../src/por/address.ts";
 
 const ROOT = "ab".repeat(32);
 const PERIOD = 202611n;
@@ -27,10 +28,10 @@ const edKey = (n: number) => {
   const priv = createPrivateKey({ key: Buffer.concat([PKCS8_PREFIX, Buffer.alloc(32, n)]), format: "der", type: "pkcs8" });
   return { priv, x: Buffer.from(createPublicKey(priv).export({ format: "der", type: "spki" }).subarray(-32)) };
 };
-function cardanoHolding(seed: number, amount: bigint, mutate: (c: { protectedBytes: Buffer; payload: Buffer }) => void = () => undefined): Holding {
+function cardanoHolding(seed: number, amount: bigint, mutate: (c: { protectedBytes: Buffer; payload: Buffer }) => void = () => undefined, form: "hex" | "bech32" = "hex"): Holding {
   const k = edKey(seed);
   const address = Buffer.concat([Buffer.from([0x00]), Buffer.from(blake2b(k.x, 28)), Buffer.alloc(28, 9)]);
-  const addressHex = address.toString("hex");
+  const addressHex = form === "bech32" ? cardanoAddress(address) : address.toString("hex");
   const payload = Buffer.from(challenge(PERIOD, ROOT, "cardano", addressHex), "hex");
   const parts = { protectedBytes: Buffer.concat([Buffer.from([0xa3, 0x01, 0x27, 0x04]), bytes(address), text("address"), bytes(address)]), payload };
   mutate(parts);
@@ -177,4 +178,48 @@ test("an Ethereum proof for another period or address, a tampered one and a wron
   assert.equal(reason(verifyReservePackage(pkg([{ ...eth, chain: "cardano" }], prices), 0n, opts)), "UNSUPPORTED_CONTROL_SCHEME");
   const malformedSig = { ...eth, control: { scheme: "evm-personal-sign", signature: "0x1234" } as Holding["control"] };
   assert.equal(reason(verifyReservePackage(pkg([malformedSig], prices), 0n, opts)), "MALFORMED_INPUT");
+});
+
+// ---- CE-22: human-readable addresses and networks ----
+test("a Cardano holding listed under its bech32 address verifies, and the network is enforced", () => {
+  const h = cardanoHolding(5, 1_000_000n, undefined, "bech32");
+  assert.ok(h.address.startsWith("addr_test1"));
+  const prices = [price("ADA", 50_000_000n)];
+  assert.ok(verifyReservePackage(pkg([h], prices), 50n, { ...opts, networks: { cardano: "testnet" } }).valid);
+  assert.ok(verifyReservePackage(pkg([h], prices), 50n, opts).valid, "no expectation: any network");
+  assert.equal(reason(verifyReservePackage(pkg([h], prices), 50n, { ...opts, networks: { cardano: "mainnet" } })), "NETWORK_MISMATCH");
+  // the raw hex form of the same address under a mainnet expectation also fails
+  assert.equal(reason(verifyReservePackage(pkg([cardanoHolding(5, 1n)], prices), 0n, { ...opts, networks: { cardano: "mainnet" } })), "NETWORK_MISMATCH");
+});
+
+test("the same address in two spellings cannot be counted twice", () => {
+  const prices = [price("ADA", 50_000_000n)];
+  const a = cardanoHolding(6, 1_000_000n), b = cardanoHolding(6, 1_000_000n, undefined, "bech32");
+  assert.notEqual(a.address, b.address);
+  assert.equal(reason(verifyReservePackage(pkg([a, b], prices), 100_000n, opts)), "DUPLICATE_HOLDING");
+  const hexForm = midnightHolding(0, 1n), bechForm = midnightHolding(0, 1n, { address: midnightAddress(Buffer.from(MN[0]!.address, "hex"), "preprod") });
+  assert.equal(reason(verifyReservePackage(pkg([hexForm, bechForm]), 0n, opts)), "DUPLICATE_HOLDING");
+});
+
+test("a malformed or wrong-network address in a tagged holding is rejected before the proof is checked", () => {
+  const bechMidnight = midnightAddress(Buffer.from(MN[0]!.address, "hex"), "preprod");
+  const h = midnightHolding(0, 1n, { address: bechMidnight });
+  assert.equal(reason(verifyReservePackage(pkg([h]), 0n, { ...opts, networks: { midnight: "mainnet" } })), "NETWORK_MISMATCH");
+  assert.equal(reason(verifyReservePackage(pkg([h]), 0n, { ...opts, networks: { midnight: "preprod" } })), "BAD_CONTROL_PROOF"); // parses; the signature was made over the hex spelling
+  assert.equal(reason(verifyReservePackage(pkg([midnightHolding(0, 1n, { address: bechMidnight.slice(0, -1) + "q" })]), 0n, opts)), "BAD_ADDRESS");
+  assert.equal(reason(verifyReservePackage(pkg([midnightHolding(0, 1n, { address: "mn_shield-addr_preprod1qq" })]), 0n, opts)), "BAD_ADDRESS");
+  assert.equal(reason(verifyReservePackage(pkg([{ ...cardanoHolding(5, 1n), address: "addr_test1qqqqqqqq" }]), 0n, opts)), "BAD_ADDRESS");
+});
+
+test("raw ed25519 proofs derive Cardano enterprise addresses when a network is given", () => {
+  const k = edKey(8);
+  const keyHex = k.x.toString("hex");
+  const address = deriveAddress("cardano", keyHex, "mainnet")!;
+  const wanted = challenge(PERIOD, ROOT, "cardano", address);
+  const signature = sign(null, Buffer.from(wanted, "hex"), k.priv).toString("hex");
+  const h: Holding = { chain: "cardano", address, asset: "ADA", amount: 2_000_000n, decimals: 6, snapshotHeight: 1n, control: { publicKey: keyHex, signature } };
+  const prices = [price("ADA", 50_000_000n)];
+  assert.ok(verifyReservePackage(pkg([h], prices), 100n, { ...opts, networks: { cardano: "mainnet" } }).valid);
+  assert.equal(reason(verifyReservePackage(pkg([h], prices), 100n, opts)), "ADDRESS_DERIVATION_UNSUPPORTED");
+  assert.equal(reason(verifyReservePackage(pkg([h], prices), 100n, { ...opts, networks: { cardano: "testnet" } })), "ADDRESS_KEY_MISMATCH");
 });

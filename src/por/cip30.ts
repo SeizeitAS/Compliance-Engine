@@ -110,7 +110,7 @@ const fail = (reason: Cip30Failure, detail: string): Cip30Result => ({ valid: fa
 
 /**
  * @param challenge 32 bytes as lowercase hex: what the wallet was asked to sign (see `challenge()` in reserves.ts)
- * @param address   the holding's address as lowercase hex of the RAW address bytes (the bech32 form is CE-22)
+ * @param address   the holding's address as lowercase hex of the RAW address bytes (./address.ts converts the bech32 form)
  * @param signature `DataSignature.signature`: hex of the CBOR `COSE_Sign1`
  * @param key       `DataSignature.key`: hex of the CBOR `COSE_Key`
  * @param network   optional: required network nibble of the address (0 = testnet, 1 = mainnet)

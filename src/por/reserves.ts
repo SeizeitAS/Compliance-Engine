@@ -32,6 +32,7 @@ import { createHash, createPublicKey, verify } from "node:crypto";
 import { verifyCip30Proof } from "./cip30.ts";
 import { verifyMidnightProof } from "./midnight.ts";
 import { verifyEvmProof } from "./evm.ts";
+import { deriveAddress as deriveChainAddress, parseAddress, type ExpectedNetworks } from "./address.ts";
 
 export type Hash = string; // lowercase hex
 
@@ -39,13 +40,13 @@ export type Hash = string; // lowercase hex
 export interface RawControl { publicKey: Hash; signature: Hash } // ed25519, 32-byte key and 64-byte signature
 /**
  * CE-21, Cardano: the output of CIP-30 `signData` (`signature` = hex of the COSE_Sign1, `key` = hex of the COSE_Key).
- * The holding's `address` is the lowercase hex of the RAW address bytes (the bech32 form is CE-22).
+ * The holding's `address` is the CIP-19 bech32 address or the lowercase hex of the raw address bytes (see ./address.ts).
  * `network` optionally requires the address network (0 testnet, 1 mainnet).
  */
 export interface Cip30Control { scheme: "cip30-ed25519"; signature: string; key: string; network?: number }
 /**
  * CE-21, Midnight: the output of the dApp connector `signData` (BIP-340 Schnorr). The holding's `address` is the
- * lowercase hex of the 32-byte address payload (the Bech32m form is CE-22).
+ * Bech32m `mn_addr[_<network>]` or the lowercase hex of the 32-byte address payload (see ./address.ts).
  */
 export interface MidnightControl { scheme: "midnight-unshielded"; verifyingKey: Hash; signature: Hash }
 /**
@@ -95,10 +96,18 @@ export interface Options {
   maxPriceAgeSeconds?: bigint; // default 3600
   /** Map (chain, ed25519 public key) to the address it controls. Unknown chains fail closed. */
   deriveAddress?: (chain: string, publicKeyHex: Hash) => string | undefined;
+  /**
+   * CE-22: the networks this report is for, for example `{ cardano: "mainnet", midnight: "preprod" }`. An address on another
+   * network fails with NETWORK_MISMATCH. A chain that is not listed accepts any network. With `cardano` set, the default
+   * `deriveAddress` also derives Cardano enterprise addresses for raw ed25519 proofs.
+   */
+  networks?: ExpectedNetworks;
 }
 
 export type Failure =
   | "DUPLICATE_HOLDING"
+  | "BAD_ADDRESS"
+  | "NETWORK_MISMATCH"
   | "BAD_HOLDING"
   | "MISSING_PRICE"
   | "DUPLICATE_PRICE"
@@ -239,8 +248,8 @@ const verifyEd25519 = (publicKeyHex: Hash, messageHex: Hash, signatureHex: Hash)
 };
 
 /** Test chain: the address is the hex SHA-256 of the key. Real chains must inject `deriveAddress`. */
-const defaultDerive = (chain: string, publicKeyHex: Hash): string | undefined =>
-  chain === "test" ? sha(hexBytes(publicKeyHex)) : undefined;
+const makeDefaultDerive = (networks: ExpectedNetworks | undefined) => (chain: string, publicKeyHex: Hash): string | undefined =>
+  chain === "test" ? sha(hexBytes(publicKeyHex)) : chain === "cardano" && networks?.cardano ? deriveChainAddress("cardano", publicKeyHex, networks.cardano) : undefined;
 
 const fail = (reason: Failure, detail: string): Result => ({ valid: false, reason, detail });
 
@@ -287,7 +296,7 @@ export function verifyReservePackage(pkg: ReservePackage, claimedReserves: bigin
   const bad = malformed(pkg, claimedReserves);
   if (bad) return fail("MALFORMED_INPUT", bad);
   const maxAge = opts.maxPriceAgeSeconds ?? 3600n;
-  const derive = opts.deriveAddress ?? defaultDerive;
+  const derive = opts.deriveAddress ?? makeDefaultDerive(opts.networks);
 
   const prices = new Map<string, PricePoint>();
   for (const p of pkg.prices) {
@@ -303,8 +312,19 @@ export function verifyReservePackage(pkg: ReservePackage, claimedReserves: bigin
   let total = 0n;
   for (const h of pkg.holdings) {
     const id = JSON.stringify([h.chain, h.address, h.asset]);
-    if (seen.has(id)) return fail("DUPLICATE_HOLDING", `${h.chain}:${h.address}:${h.asset}`);
-    seen.add(id);
+    // CE-22: the same address written two ways (bech32, hex, mixed-case Ethereum) must not be counted twice.
+    let canonicalId = id;
+    let parsedAddress: ReturnType<typeof parseAddress> | undefined;
+    if ("scheme" in h.control) {
+      const schemeChain: Record<string, string> = { "cip30-ed25519": "cardano", "midnight-unshielded": "midnight", "evm-personal-sign": "ethereum" };
+      const wantChain = schemeChain[h.control.scheme];
+      if (wantChain !== undefined && h.chain !== wantChain) return fail("UNSUPPORTED_CONTROL_SCHEME", `${h.control.scheme} is for chain ${wantChain}, not ${h.chain}`);
+      parsedAddress = parseAddress(h.chain, h.address, opts.networks);
+      if (!parsedAddress.ok) return fail(parsedAddress.reason === "NETWORK_MISMATCH" ? "NETWORK_MISMATCH" : "BAD_ADDRESS", `${id}: ${parsedAddress.detail}`);
+      canonicalId = JSON.stringify([h.chain, parsedAddress.canonical, h.asset]);
+    }
+    if (seen.has(canonicalId)) return fail("DUPLICATE_HOLDING", `${h.chain}:${h.address}:${h.asset}`);
+    seen.add(canonicalId);
     const haircut = h.haircutBps ?? 0;
     if (h.amount < 0n || h.decimals < 0 || h.decimals > 36 || haircut < 0 || haircut > 10000 || !Number.isInteger(haircut)) {
       return fail("BAD_HOLDING", id);
@@ -322,17 +342,17 @@ export function verifyReservePackage(pkg: ReservePackage, claimedReserves: bigin
     } else if (control.scheme === "cip30-ed25519") {
       if (h.chain !== "cardano") return fail("UNSUPPORTED_CONTROL_SCHEME", `cip30-ed25519 is for chain cardano, not ${h.chain}`);
       const r = verifyCip30Proof({
-        challenge: wanted, address: h.address, signature: control.signature, key: control.key,
+        challenge: wanted, address: parsedAddress!.ok ? parsedAddress.raw : h.address, signature: control.signature, key: control.key,
         ...(control.network !== undefined ? { network: control.network } : {}),
       });
       if (!r.valid) return fail("BAD_CONTROL_PROOF", `${id}: ${r.reason}: ${r.detail}`);
     } else if (control.scheme === "midnight-unshielded") {
       if (h.chain !== "midnight") return fail("UNSUPPORTED_CONTROL_SCHEME", `midnight-unshielded is for chain midnight, not ${h.chain}`);
-      const r = verifyMidnightProof({ challenge: wanted, address: h.address, verifyingKey: control.verifyingKey, signature: control.signature });
+      const r = verifyMidnightProof({ challenge: wanted, address: parsedAddress!.ok ? parsedAddress.raw : h.address, verifyingKey: control.verifyingKey, signature: control.signature });
       if (!r.valid) return fail("BAD_CONTROL_PROOF", `${id}: ${r.reason}: ${r.detail}`);
     } else if (control.scheme === "evm-personal-sign") {
       if (h.chain !== "ethereum") return fail("UNSUPPORTED_CONTROL_SCHEME", `evm-personal-sign is for chain ethereum, not ${h.chain}`);
-      const r = verifyEvmProof({ challenge: wanted, address: h.address, signature: control.signature });
+      const r = verifyEvmProof({ challenge: wanted, address: parsedAddress!.ok ? parsedAddress.raw : h.address, signature: control.signature });
       if (!r.valid) return fail("BAD_CONTROL_PROOF", `${id}: ${r.reason}: ${r.detail}`);
     } else {
       return fail("UNSUPPORTED_CONTROL_SCHEME", `unknown control scheme`);
