@@ -175,9 +175,9 @@ filtering, no netting, no relabelling. Planned:
 - **On-chain readers** (CE-23) for self-custody addresses.
 
 ## Reading an exchange through its API
-Whether an exchange's API gives full, read-only account history (trades, deposits, withdrawals, staking
-rewards, balances per date) is **not established here** and must be read from the exchange's own documentation
-before the connector is designed. If it does, the connector reads straight from the exchange and the accounting
+Whether an exchange's API gives full account history (trades, deposits, withdrawals, staking rewards, balances
+per date) has to be read from the exchange's own documentation before the connector is designed. For NBX that
+was done on 2026-11-24 (see the next section). If the API gives the history, the connector reads straight from the exchange and the accounting
 system is only a place where the credential is kept. Rules the connector follows:
 1. **Read-only credential.** The key must be created with the narrowest permission the exchange offers, with no
    right to trade or withdraw. A key that can move funds is refused when the exchange says what a key can do.
@@ -192,6 +192,37 @@ system is only a place where the credential is kept. Rules the connector follows
 5. **Balance check.** Balances at the start and end of the period are read from the exchange and checked against
    the movements (the statement chaining above), so a missing movement breaks the arithmetic.
 
+### What the NBX public API offers (read 2026-11-24 from its public documentation)
+Source: the NBX Public API 1.0.0 documentation, https://app.nbx.com/developers (an OpenAPI file can be downloaded
+there). Facts below are what that page states; they can change, and an agreement with NBX would override them.
+- **Protected endpoints per account:** orders (with fills and commissions), assets (balance `available` and `total`,
+  and freezes), account trades (market, price, quantity, fee, side, time), and a **ledger per asset**
+  (`GET /accounts/{account_id}/assets/{asset_id}/ledger`): amount, creation time, id, a reference id and a type
+  (the example shows `DEPOSIT`). Public endpoints give assets, markets, tickers, order books and trade history.
+- **Authentication:** an API key (key id, secret, passphrase) is created in the account (verified account and 2FA
+  required). The client signs a request with HMAC-SHA256 to get a bearer token with a lifetime of 1 minute to
+  1 week, then calls the endpoints with the token.
+- **Paging:** large lists are paged through a `x-next-page-url` header; page size varies. There is no date filter
+  in the documented ledger parameters, so a period is cut from the full history by the client.
+- **Limits:** 1000 requests per minute per IP address, plus a firewall that can block heavy use; NBX
+  recommends a dedicated outbound address.
+- **Not stated in the documentation, and so to be asked of NBX:** (1) whether a key can be limited to read
+  access (the documentation describes only creating and revoking keys, and the same token is used to create and
+  cancel orders, so **a key must be assumed able to trade until NBX says otherwise**); (2) the full list of
+  ledger entry types, and whether withdrawals, fees, staking rewards and airdrops appear as ledger entries;
+  (3) whether a ledger entry or withdrawal carries the counterparty address or the chain transaction id (the
+  documented example does not), which the counterparty and jurisdiction packs need; (4) whether the ledger shows
+  opening and closing balances for a date, which the statement chaining needs; (5) whether NBX can sign the
+  response or an export.
+- **Consequence for the design:** the ledger and the trades endpoint can give the records and their order, and
+  the asset endpoint the current balance, so the statement chaining can be done from the ledger by summing entries
+  from the start of the account's history. Rules that need the counterparty or the chain transaction (CE-37) may
+  need NBX to expose more fields, or the chain data matched by transaction id.
+- **A key that can trade is a risk for the business.** Until a read-only key exists, the credential must be kept
+  as carefully as any trading credential, the pull should be run by the business or its auditor and not by a
+  third party, and a verifier must not be handed the key. The report records which key permissions the exchange
+  states, or "not stated".
+
 What this does and does not give. It removes the business's own re-typing and the swap of a file after the fact:
 the records come from the exchange's system in a form that can be pulled again. It does **not** let a bank trust
 the records without a further step, because a pull made by the business is still reported by the business. The
@@ -201,7 +232,29 @@ ways to close that, from simplest to strongest:
 - the **exchange signs** the response or the export (best, and a request to put to the exchange);
 - a **recorded, verifiable TLS session** (an area under research; it would let a third party check that a response
   came from the exchange's server without seeing the key). Not assumed available.
+- the **auditor witnesses or repeats the pull** and signs the report (the next section).
 Until one of these is in place the report states level 2 (see "Trust level of a source"), not level 1.
+
+### Auditor state
+Whether an auditor takes part is a fact about the business, not about the engine, so it is **an input**: the
+system that runs the pack (the accounting system or another reporting system) supplies a state, `auditor:
+none | engaged`, and, when engaged, the auditor's public key (a control-proof key, CE-21). The engine then
+behaves as follows, and the report prints which branch was used:
+- `none`: the report is the business's own, at the trust level of its sources, and says "no auditor".
+- `engaged`: the auditor repeats or witnesses the pull, compares it with the business's report, and signs the
+  package hash with their key. The verifier checks the signature and reads "reviewed by [auditor key]" in
+  place of "own pull". The signature covers the package hash only: it shows that the auditor stood behind
+  exactly that result, not what the auditor did to reach it, which belongs in the auditor's own working papers.
+A report signed by the exchange itself (level 1) is stronger than either, and an exchange that is a customer of
+this kind of solution is a natural place to ask for it. That is a commercial and technical agreement with the
+exchange, not something the engine can assume.
+
+## Open source and independent assurance
+The source is published, so anyone can read what the engine does and re-run it on the same inputs. That makes the
+result checkable but not endorsed. An independent party's statement that the implementation does what its
+specification says (a software assurance report) would be a separate thing from the signature on a single report;
+whether to commission one, and its scope, is for the owner and the auditor to decide, and nothing in this
+repository claims it.
 
 ## Versioning and governance
 A pack is identified by id and version; a changed rule is a new version, and a report always names the version.
