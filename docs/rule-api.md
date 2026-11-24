@@ -166,11 +166,42 @@ Three levels, to be chosen together with the verifier:
 ## Connectors
 A connector turns one source into `LedgerRecord` items plus the document hashes. It does no judgement: no
 filtering, no netting, no relabelling. Planned:
-- An **exchange statement import** (first target: a Norwegian exchange's monthly statement). The statement
-  format has to be seen before the connector is designed.
+- An **exchange API connector** (first target: a Norwegian exchange, if its API offers read access to account
+  history). The exchange itself is then the source, not a PDF and not the accounting system: the accounting
+  system, or any other system, only hands over the access credential. See "Reading an exchange through its API".
+  A statement-file import stays as the fallback for exchanges without a usable API.
 - An **accounting-system export** (first target: the author's own system), carrying the vouchers and their
   hashes.
 - **On-chain readers** (CE-23) for self-custody addresses.
+
+## Reading an exchange through its API
+Whether an exchange's API gives full, read-only account history (trades, deposits, withdrawals, staking
+rewards, balances per date) is **not established here** and must be read from the exchange's own documentation
+before the connector is designed. If it does, the connector reads straight from the exchange and the accounting
+system is only a place where the credential is kept. Rules the connector follows:
+1. **Read-only credential.** The key must be created with the narrowest permission the exchange offers, with no
+   right to trade or withdraw. A key that can move funds is refused when the exchange says what a key can do.
+2. **The credential is never part of the data.** It is read from a file or a secret store named in the
+   configuration (for example the file the accounting system already keeps), held in memory for the pull, and
+   never written to the report, the log, the repository or any message. It is not given to a verifier.
+3. **The pull is recorded.** Time, endpoints, parameters, paging, and a hash of each response are stored in
+   the evidence of the report, so a later run can be compared with the first. The raw responses are kept by the
+   business and shown to the verifier on request.
+4. **Complete paging.** Every page is read to the end; a pull that stops early (an error, a rate limit) fails
+   rather than producing a shorter ledger.
+5. **Balance check.** Balances at the start and end of the period are read from the exchange and checked against
+   the movements (the statement chaining above), so a missing movement breaks the arithmetic.
+
+What this does and does not give. It removes the business's own re-typing and the swap of a file after the fact:
+the records come from the exchange's system in a form that can be pulled again. It does **not** let a bank trust
+the records without a further step, because a pull made by the business is still reported by the business. The
+ways to close that, from simplest to strongest:
+- the **bank (or the auditor) repeats the pull** with a read-only key the business issues for that purpose and
+  revokes afterwards, and the reports are compared;
+- the **exchange signs** the response or the export (best, and a request to put to the exchange);
+- a **recorded, verifiable TLS session** (an area under research; it would let a third party check that a response
+  came from the exchange's server without seeing the key). Not assumed available.
+Until one of these is in place the report states level 2 (see "Trust level of a source"), not level 1.
 
 ## Versioning and governance
 A pack is identified by id and version; a changed rule is a new version, and a report always names the version.
