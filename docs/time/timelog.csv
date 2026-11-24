@@ -32,3 +32,4 @@ date,person,sprint,task_id,category,hours,note
 2026-11-23,setereng,S1,CE-21,research,-0.5,correction: owner states 2.0 h in total for 2026-11-23 (Lace test and verifiers and documentation) instead of 2.5
 2026-11-24,setereng,S1,CE-22,development,0.5,-ai: address formats for Cardano (CIP-19), Midnight (mn_addr) and Ethereum (EIP-55) with network checks; own Bech32/Bech32m; 15 tests; owner states 0.5 h
 2026-11-24,setereng,S1,CE-34,documentation,0.5,-ai: design note for the rule API (review packs, coverage, trust levels, exchange API source); backlog CE-34 to CE-37; owner states 0.5 h
+2026-11-24,setereng,S1,CE-34,research,0.25,-ai: read the NBX public API documentation (ledger, auth, limits, gaps); auditor state and assurance added to the rule API note; owner states 0.25 h
