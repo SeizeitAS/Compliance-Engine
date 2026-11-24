@@ -20,7 +20,7 @@ Blueprint: `docs/compliance_engine_documentation.md` (original draft, has known 
 
 ## Commands
 ```
-npm test                      # needs Node >= 22.18 (runs .ts directly). 136 tests, no dependencies
+npm test                      # needs Node >= 22.18 (runs .ts directly). 155 tests, no dependencies
 npm run contracts:compile     # needs the Compact toolchain (`compact` on PATH)
 npm run crosscheck:por        # same for PoR (needs: npm install --no-save @midnight-ntwrk/compact-runtime@0.16.0)
 npm run runtime:check          # runs both contracts in the runtime: 22 accept/reject checks
@@ -34,6 +34,7 @@ npm run time:report
 ## Layout
 - `src/sanctions/indexedMerkleTree.ts`: sorted-Merkle-tree non-membership proof (reference/oracle). Depth 20, 128-bit keys, hash = SHA-256(tag32 || a32 || b32), numbers little-endian.
 - `src/eudi/sdJwtVc.ts`: SD-JWT VC (ES256) credential intake verifier (CE-9 step 1).
+- `src/review/`: rule API core (CE-34): records and Merkle commitment, review engine, first packs. Design in `docs/rule-api.md`.
 - `src/i18n/`: language system. `locales/`: catalogs.
 - `contracts/AML_Gate.compact` and `contracts/PoR.compact`: both compiled and cross-checked 2026-11-16. `src/por/sumTree.ts` is the PoR reference (Merkle sum tree), `docs/proof-of-reserves.md` its design and limits.
 - `docs/`: `non-membership-proof.md`, `eudi-intake.md`, `toolchain.md`, `i18n.md`, `SCRUM.md`, `TIME_TRACKING.md`, `research/sisit-insight-review.md`.

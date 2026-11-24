@@ -1,6 +1,6 @@
 # A rule API for review packs (design note, CE-34)
 
-Status: **design note, nothing implemented.** Date: 2026-11-24. This note describes how the Compliance Engine
+Status: **core implemented (CE-34, `src/review/`)**; connectors and further packs are not. Date: 2026-11-24. This note describes how the Compliance Engine
 could be used by extension packs that check a business's own records against a set of criteria, and produce a
 result that a bank, an auditor or a supervisor can verify without redoing the work. It is written to be read by
 those parties as well as by developers. It is not legal advice, and it does not state what any law requires: the
@@ -260,6 +260,29 @@ repository claims it.
 A pack is identified by id and version; a changed rule is a new version, and a report always names the version.
 Parameter files are signed by the criteria owner, so the business cannot quietly use softer numbers. Who
 publishes packs and who approves new versions is the same open governance question as CE-25.
+
+## Implementation (CE-34)
+The core is in `src/review/`, with tests in `test/review.test.ts`. Where it differs from the sketch above, the code is what holds:
+- `records.ts`: `LedgerRecord`, `commitRecords` (a Merkle root over the records sorted by id, with the count inside the root, so the
+  order of arrival does not matter), `recordPath` and `verifyRecordPath` (a record can be shown to belong to the committed set
+  without showing the others: disclosure level 2). `valueNokOre` and `priceRef` are optional; a record without a value is a finding
+  in the packs, not a silent skip.
+- `engine.ts`: `review(input, options)` returns `{ valid: true, report, packageHash }` or `{ valid: false, reason, detail }`. It checks
+  records, sources, evidence and statements, runs the packs, and builds the report. The package hash is SHA-256 over a domain tag and a
+  deterministic text form of the whole report (sorted keys, bigints marked, no floating point).
+- **A finding is explained only when one evidence item both is referenced by every record in it (the hash sits inside the committed
+  leaf) and names every record (`covers`)**, is of a kind and from an issuer the policy accepts, and, if the policy requires it, passes
+  the verifier the caller supplies (a signature check, for example). Evidence attached later, or evidence for a different record, does
+  not explain anything.
+- **Statement chaining** is checked per source document and asset: opening plus movements must equal closing, a record must fall in the
+  period, contiguous statements must chain, and overlaps fail. A missing period is reported as a gap and a record with no statement as
+  unchained; both make `coverage.complete` false and add a line to `limits`. `complete` narrows the risk of omissions; it does not close it.
+- `packs.ts`: `reporting-limit` (at or above the limit; direction any, in or out) and `unexplained` (at or above the limit with nothing
+  attached). The limit is a parameter. The pack id, version and a hash of the parameters are in the report; the hash of the pack's code is not.
+- `clean` means no open finding. It says nothing about completeness, and the report keeps the two apart.
+
+Not yet: checking the auditor's signature on the package hash (the state and key are in the report), the report text through the
+language system (the limits are English constants), and a circuit version.
 
 ## Proposed backlog
 | Item | Title | Notes |
