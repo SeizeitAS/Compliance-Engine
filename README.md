@@ -26,4 +26,4 @@ All code and documentation are English; see `CONTRIBUTING.md`.
 4. Oracle Stage 1 filtering (reject outside 1 sigma) discards about a third of normal samples and is unstable with 3-4 sources; consider median/MAD.
 
 ## License
-Apache License 2.0, see `LICENSE` and `NOTICE`. Parts of `integration/` and `infra/` are derived from Midnight Foundation examples under the same license; their headers are kept.
+Open core. Everything in this repository is under the Apache License 2.0 (`LICENSE`, `NOTICE`). Commercial modules for regulated customers and the infrastructure service (proof publishing on Midnight, DUST sponsorship, operation and support) are offered separately by Seize it AS, see `LICENSING.md`. Names and marks: `TRADEMARKS.md`. Parts of `integration/` and `infra/` are derived from Midnight Foundation examples under Apache 2.0; their headers are kept.

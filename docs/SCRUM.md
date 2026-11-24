@@ -67,6 +67,7 @@ Language: English only (see `locales/README.md` for user-facing translations).
 | CE-35 | Exchange statement connector (monthly statements to ledger records) | BACKLOG | Medium | 5 | Needs an anonymised sample statement. Part of `docs/rule-api.md`. |
 | CE-36 | Accounting-system export connector (records, vouchers and their hashes) | BACKLOG | Medium | 5 | Part of `docs/rule-api.md`. |
 | CE-37 | Further rule packs: aggregate-window, near-limit, counterparty-list, jurisdiction, sanctions | BACKLOG | Medium | 8 | After the criteria owner has said which it wants. |
+| CE-38 | Open-core licensing: Apache-2.0 core, separate commercial modules, infrastructure service, contribution terms | DONE | High | 2 | Done 2026-11-24: `LICENSING.md`, `TRADEMARKS.md`, contribution terms with DCO sign-off and an additional license to Seize it AS in `CONTRIBUTING.md`, contributor note in `NOTICE`, README and pull request template updated. Decision by the owner: model B (open core), project owned by Seize it AS. Open: legal review of the contribution terms, a written rights agreement between the sole proprietorship and Seize it AS, and marking each backlog item as open core or commercial when it is planned. |
 
 ## 5. Sprint log
 

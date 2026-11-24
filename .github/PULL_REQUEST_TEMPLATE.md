@@ -9,3 +9,4 @@ Backlog item: CE-
 - [ ] Docs updated, and claims in them match what was actually run
 - [ ] No secrets, personal data or real sanctions-list subjects
 - [ ] English for code, comments and documentation; user-facing text in `locales/`
+- [ ] Every commit is signed off (`git commit -s`) and I agree to the contribution terms in `CONTRIBUTING.md`
